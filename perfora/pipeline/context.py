@@ -40,6 +40,7 @@ class PipelineContext:
     notes: list[NoteEvent] = field(default_factory=list)
     texts: list[TextRegion] = field(default_factory=list)
     review: list[ReviewItem] = field(default_factory=list)
+    debug: dict[str, object] = field(default_factory=dict)
 
     def to_document(self) -> RollDocument:
         """Assemble the final :class:`RollDocument` from the current state.
@@ -63,4 +64,5 @@ class PipelineContext:
             notes=list(self.notes),
             texts=list(self.texts),
             review_queue=list(self.review),
+            debug=dict(self.debug),
         )
