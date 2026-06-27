@@ -91,31 +91,117 @@ def default_notes(spec: RollSpec) -> list[tuple[int, float, float]]:
     return notes
 
 
-def render(spec: RollSpec) -> tuple[NDArray[np.uint8], RollDocument]:
-    """Render ``spec`` to ``(bgr_image, ground_truth_document)``."""
-    rng = np.random.default_rng(spec.seed)
+def _roll_patch(
+    spec: RollSpec,
+    notes: list[tuple[int, float, float]],
+    rng: np.random.Generator,
+) -> NDArray[np.uint8]:
+    """Build the bare roll content (paper + holes + noise), no background."""
     ppmm = spec.dpi / 25.4
     colors = _REGIMES[spec.regime]
-
     roll_h = int(round(spec.roll_length_mm * ppmm))  # rows = u
     roll_w = int(round(spec.roll_width_mm * ppmm))  # cols = v
     patch = np.full((roll_h, roll_w), colors["paper"], dtype=np.float64)
-
-    notes = spec.notes if spec.notes is not None else default_notes(spec)
     for lane, u0_mm, u1_mm in notes:
         _draw_note(patch, spec, lane, u0_mm, u1_mm, ppmm, float(colors["hole"]))
-
     if spec.illumination > 0:
         patch *= _illumination_gradient(roll_h, roll_w, spec.illumination)
     if spec.noise > 0:
         patch += rng.normal(0.0, spec.noise, patch.shape)
-    patch = np.clip(patch, 0, 255)
+    return np.clip(patch, 0, 255).astype(np.uint8)
 
-    image = _embed_and_skew(patch.astype(np.uint8), spec, colors["bg"])
+
+def render(spec: RollSpec) -> tuple[NDArray[np.uint8], RollDocument]:
+    """Render ``spec`` to ``(bgr_image, ground_truth_document)``."""
+    rng = np.random.default_rng(spec.seed)
+    colors = _REGIMES[spec.regime]
+    notes = spec.notes if spec.notes is not None else default_notes(spec)
+    patch = _roll_patch(spec, notes, rng)
+    image = _embed_and_skew(patch, spec, colors["bg"])
     bgr = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
-
     doc = _ground_truth(spec, notes)
     return bgr.astype(np.uint8), doc
+
+
+def synth_video(
+    spec: RollSpec,
+    *,
+    window_frac: float = 0.25,
+    base_speed_px: float = 1.0,
+    speed_jitter: float = 0.0,
+    wobble_px: float = 0.0,
+    seed: int = 0,
+) -> tuple[list[NDArray[np.uint8]], NDArray[np.uint8], RollDocument]:
+    """Scroll a known roll past a virtual camera; return frames + flat + GT.
+
+    The roll content scrolls vertically (``u``) through a fixed camera window;
+    the centre row of the window is the slit a slit-scan reconstructor samples.
+
+    Parameters
+    ----------
+    spec : RollSpec
+        The roll to film.
+    window_frac : float
+        Camera window height as a fraction of the roll length.
+    base_speed_px : float
+        Nominal per-frame vertical advance in pixels.
+    speed_jitter : float
+        Uniform +/- jitter on the per-frame advance (fraction of base speed).
+    wobble_px : float
+        Amplitude of sinusoidal lateral (``v``) wobble, in pixels.
+    seed : int
+        RNG seed for jitter.
+
+    Returns
+    -------
+    (frames, flat_bgr, ground_truth)
+        ``frames`` is a list of BGR frames; ``flat_bgr`` is the equivalent flat
+        scan (``render``); ``ground_truth`` is the shared GT document.
+    """
+    rng = np.random.default_rng(spec.seed)
+    notes = spec.notes if spec.notes is not None else default_notes(spec)
+    patch = _roll_patch(spec, notes, rng)
+    bg = _REGIMES[spec.regime]["bg"]
+    h, w = patch.shape
+
+    wh = max(8, int(round(window_frac * h)))
+    pad = wh  # paper pad so the slit can sweep the full content
+    padded = np.full((h + 2 * pad, w), bg, dtype=np.uint8)
+    padded[pad : pad + h] = patch
+
+    jit = np.random.default_rng(seed)
+    frames: list[NDArray[np.uint8]] = []
+    # start with the slit (window centre) on roll row 0 and sweep to the last
+    # roll row, so the reconstructed strip aligns with the flat scan in u.
+    top = float(pad - wh / 2)
+    max_top = float(pad + h - wh / 2)
+    f = 0
+    while top <= max_top:
+        y = int(round(top))
+        window = padded[y : y + wh].copy()
+        if wobble_px > 0:
+            shift = wobble_px * np.sin(2 * np.pi * f / 23.0)
+            window = _shift_columns(window, shift, bg)
+        frames.append(cv2.cvtColor(window, cv2.COLOR_GRAY2BGR))
+        step = base_speed_px
+        if speed_jitter > 0:
+            step *= 1.0 + jit.uniform(-speed_jitter, speed_jitter)
+        top += max(0.2, step)
+        f += 1
+
+    flat_bgr, doc = render(spec)
+    return frames, flat_bgr, doc
+
+
+def _shift_columns(
+    img: NDArray[np.uint8], shift: float, fill: int
+) -> NDArray[np.uint8]:
+    """Translate an image horizontally by ``shift`` px (lateral wobble)."""
+    h, w = img.shape
+    m = np.array([[1.0, 0.0, shift], [0.0, 1.0, 0.0]], dtype=np.float64)
+    return cv2.warpAffine(
+        img, m, (w, h), flags=cv2.INTER_LINEAR, borderValue=float(fill)
+    )
 
 
 def _draw_note(
