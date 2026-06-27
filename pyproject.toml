@@ -1,7 +1,75 @@
 [project]
 name = "perfora"
 version = "0.1.0"
-description = "Add your description here"
+description = "Digitize player-piano roll scans and videos into a reversible, millimetre-based model of perforations and text."
 readme = "README.md"
-requires-python = ">=3.14"
-dependencies = []
+requires-python = ">=3.11"
+license = { file = "LICENSE" }
+authors = [{ name = "RedRem95", email = "alexander.vollmer.95@hotmail.de" }]
+dependencies = [
+    "numpy",
+    "scipy",
+    "pandas",
+    "scikit-image",
+    "opencv-python-headless",
+]
+
+[project.scripts]
+perfora = "perfora.cli:main"
+
+[project.optional-dependencies]
+tesseract = ["pytesseract"]
+trocr = ["transformers", "torch", "pillow"]
+easyocr = ["easyocr"]
+doctr = ["python-doctr"]
+midi = ["mido"]
+cli = ["rich", "questionary", "pillow"]
+all = ["perfora[tesseract,trocr,easyocr,doctr,midi,cli]"]
+dev = ["pytest", "ruff", "mypy", "hypothesis"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["perfora"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+src = ["perfora", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "W", "N", "SIM"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["N802", "N803", "N806"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+files = ["perfora"]
+warn_unused_ignores = true
+show_error_codes = true
+
+[[tool.mypy.overrides]]
+module = [
+    "cv2",
+    "cv2.*",
+    "scipy",
+    "scipy.*",
+    "skimage",
+    "skimage.*",
+    "pandas",
+    "pandas.*",
+]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+markers = [
+    "tesseract: requires the [tesseract] extra",
+    "trocr: requires the [trocr] extra",
+    "easyocr: requires the [easyocr] extra",
+]
