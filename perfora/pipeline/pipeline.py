@@ -39,12 +39,19 @@ def default_pipeline(text_engine: object | None = None) -> Pipeline:
     Parameters
     ----------
     text_engine : object or None, optional
-        The text engine to use for the text stage (Phase 2+). Accepted now so
-        the signature is stable; the concrete CV stages (preprocess, holes,
-        lanes, notes, text) are wired in Phase 1+. Until then this raises so
-        callers fail loudly rather than running an empty pipeline.
+        The text engine for the text stage (Phase 2+). Accepted now so the
+        signature is stable; the text stage is appended once it exists.
+
+    Returns
+    -------
+    Pipeline
+        The geometry pipeline: preprocess -> holes -> lanes -> notes.
     """
-    raise NotImplementedError(
-        "default_pipeline() is wired up in Phase 1 (geometry core). "
-        "Construct a Session/Pipeline with explicit stages for now."
+    from perfora.pipeline.stages.holes import HoleExtraction
+    from perfora.pipeline.stages.lanes import LaneFinding
+    from perfora.pipeline.stages.notes import NoteAssembly
+    from perfora.pipeline.stages.preprocess import Preprocess
+
+    return Pipeline(
+        [Preprocess(), HoleExtraction(), LaneFinding(), NoteAssembly()]
     )
