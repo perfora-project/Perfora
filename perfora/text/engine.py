@@ -22,7 +22,31 @@ if TYPE_CHECKING:
     from perfora.sources.base import RollImage
     from perfora.text.base import TextDetector, TextRecognizer
 
-__all__ = ["TextEngine"]
+__all__ = ["TextEngine", "default_text_engine"]
+
+
+def default_text_engine() -> TextEngine:
+    """Build the default offline engine from whatever backends are installed.
+
+    The detector is the dependency-free ``ContourDetector``; recognizers are
+    added only when their extra is present (Tesseract for printed text, TrOCR for
+    handwriting). With no extras the engine still detects boxes and emits
+    detection-only regions.
+    """
+    from importlib.util import find_spec
+
+    from perfora.text.detectors.contour import ContourDetector
+
+    recognizers: list[TextRecognizer] = []
+    if find_spec("pytesseract") is not None:
+        from perfora.text.recognizers.tesseract import TesseractRecognizer
+
+        recognizers.append(TesseractRecognizer())
+    if find_spec("torch") is not None and find_spec("transformers") is not None:
+        from perfora.text.recognizers.trocr import TrocrRecognizer
+
+        recognizers.append(TrocrRecognizer())
+    return TextEngine(ContourDetector(), recognizers)
 
 
 class TextEngine:
