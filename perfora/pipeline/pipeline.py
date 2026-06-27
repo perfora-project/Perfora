@@ -45,13 +45,22 @@ def default_pipeline(text_engine: object | None = None) -> Pipeline:
     Returns
     -------
     Pipeline
-        The geometry pipeline: preprocess -> holes -> lanes -> notes.
+        The full pipeline: preprocess -> holes -> lanes -> notes -> text.
     """
     from perfora.pipeline.stages.holes import HoleExtraction
     from perfora.pipeline.stages.lanes import LaneFinding
     from perfora.pipeline.stages.notes import NoteAssembly
     from perfora.pipeline.stages.preprocess import Preprocess
+    from perfora.pipeline.stages.text import TextStage
+    from perfora.text.engine import TextEngine
 
+    engine = text_engine if isinstance(text_engine, TextEngine) else None
     return Pipeline(
-        [Preprocess(), HoleExtraction(), LaneFinding(), NoteAssembly()]
+        [
+            Preprocess(),
+            HoleExtraction(),
+            LaneFinding(),
+            NoteAssembly(),
+            TextStage(engine),
+        ]
     )

@@ -65,6 +65,22 @@ module = [
 ]
 ignore_missing_imports = true
 
+[[tool.mypy.overrides]]
+# Optional OCR/ML extras — not installed in the core env.
+module = [
+    "pytesseract",
+    "pytesseract.*",
+    "easyocr",
+    "easyocr.*",
+    "torch",
+    "torch.*",
+    "transformers",
+    "transformers.*",
+    "PIL",
+    "PIL.*",
+]
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"
