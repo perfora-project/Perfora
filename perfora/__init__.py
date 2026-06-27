@@ -32,6 +32,8 @@ from perfora.io.registry import (
     write_document,
 )
 from perfora.pipeline.session import Session
+from perfora.sources.image_source import ImageSource
+from perfora.sources.video_source import VideoSource
 
 if TYPE_CHECKING:
     from perfora.model.document import RollDocument
@@ -40,7 +42,9 @@ if TYPE_CHECKING:
 __version__ = "0.1.0"
 
 __all__ = [
+    "ImageSource",
     "Session",
+    "VideoSource",
     "__version__",
     "available_formats",
     "process",
