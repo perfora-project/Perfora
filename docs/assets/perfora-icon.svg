@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="360" height="360" viewBox="0 0 360 360" role="img" aria-label="perfora icon">
+  <rect x="2" y="2" width="356" height="356" rx="64" fill="#F5EDDB" stroke="#E7DBC0" stroke-width="2"/>
+  <g transform="translate(37,37) scale(1.1)">
+    <!-- punched P: long stem slot (held note) + bowl punches -->
+    <g fill="#232019">
+      <rect x="60" y="30" width="20" height="200" rx="10"/>
+      <circle cx="100" cy="40" r="10"/><circle cx="130" cy="40" r="10"/><circle cx="160" cy="40" r="10"/>
+      <circle cx="100" cy="130" r="10"/><circle cx="130" cy="130" r="10"/><circle cx="160" cy="130" r="10"/>
+    </g>
+    <!-- second held note, amber -->
+    <rect x="180" y="60" width="20" height="50" rx="10" fill="#D08A3E"/>
+  </g>
+</svg>

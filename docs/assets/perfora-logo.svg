@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="706" height="260" viewBox="0 0 706 260" role="img" aria-label="perfora logo">
+  <!-- paper panel (the roll). A transparent version would simply drop this rect. -->
+  <rect x="20" y="20" width="666" height="220" rx="26" fill="#F5EDDB" stroke="#E7DBC0" stroke-width="2"/>
+
+  <!-- faint, unpunched holes: the paper / roll continuing -->
+  <g fill="#C9BC9C" opacity="0.55">
+    <circle cx="190" cy="40" r="4"/><circle cx="220" cy="40" r="4"/>
+    <circle cx="100" cy="70" r="4"/><circle cx="130" cy="70" r="4"/><circle cx="160" cy="70" r="4"/><circle cx="220" cy="70" r="4"/>
+    <circle cx="100" cy="100" r="4"/><circle cx="130" cy="100" r="4"/><circle cx="160" cy="100" r="4"/><circle cx="220" cy="100" r="4"/>
+    <circle cx="190" cy="130" r="4"/><circle cx="220" cy="130" r="4"/>
+    <circle cx="100" cy="160" r="4"/><circle cx="130" cy="160" r="4"/><circle cx="160" cy="160" r="4"/><circle cx="190" cy="160" r="4"/><circle cx="220" cy="160" r="4"/>
+    <circle cx="100" cy="190" r="4"/><circle cx="130" cy="190" r="4"/><circle cx="160" cy="190" r="4"/><circle cx="190" cy="190" r="4"/><circle cx="220" cy="190" r="4"/>
+    <circle cx="100" cy="220" r="4"/><circle cx="130" cy="220" r="4"/><circle cx="160" cy="220" r="4"/><circle cx="190" cy="220" r="4"/><circle cx="220" cy="220" r="4"/>
+  </g>
+
+  <!-- faint scan line passing over the roll (nod to video scanning) -->
+  <rect x="203" y="28" width="4" height="204" fill="#D08A3E" opacity="0.18"/>
+
+  <!-- punched P: the left stem is one long slot (a held note) so it reads as a piano roll, not a punch card -->
+  <g fill="#232019">
+    <rect x="60" y="30" width="20" height="200" rx="10"/>
+    <circle cx="100" cy="40" r="10"/><circle cx="130" cy="40" r="10"/><circle cx="160" cy="40" r="10"/>
+    <circle cx="100" cy="130" r="10"/><circle cx="130" cy="130" r="10"/><circle cx="160" cy="130" r="10"/>
+  </g>
+  <!-- right side of the bowl as a shorter amber slot: a second held note -->
+  <rect x="180" y="60" width="20" height="50" rx="10" fill="#D08A3E"/>
+
+  <!-- wordmark -->
+  <text x="300" y="158" font-family="'Poppins','Montserrat','Century Gothic','Futura',sans-serif" font-size="96" font-weight="600" letter-spacing="-2" fill="#232019">perfora</text>
+
+  <!-- perforated rule: a strip of the roll under the name -->
+  <g fill="#232019">
+    <circle cx="304" cy="188" r="4"/><circle cx="330" cy="188" r="4"/><circle cx="356" cy="188" r="4"/><circle cx="382" cy="188" r="4"/>
+    <circle cx="408" cy="188" r="4" fill="#D08A3E"/>
+    <circle cx="434" cy="188" r="4"/><circle cx="460" cy="188" r="4"/><circle cx="486" cy="188" r="4"/><circle cx="512" cy="188" r="4"/><circle cx="538" cy="188" r="4"/><circle cx="564" cy="188" r="4"/><circle cx="590" cy="188" r="4"/><circle cx="616" cy="188" r="4"/><circle cx="642" cy="188" r="4"/>
+  </g>
+</svg>
