@@ -52,6 +52,13 @@ def test_error_hierarchy() -> None:
 
 def test_missing_backend_error_message_and_attrs() -> None:
     err = MissingBackendError("trocr", "trocr")
-    assert "pip install perfora[trocr]" in str(err)
+    msg = str(err)
+    assert "perfora[trocr]" in msg  # how to install the extra
+    assert "uv sync --extra trocr" in msg
     assert err.backend == "trocr"
     assert err.extra == "trocr"
+
+
+def test_missing_backend_error_tesseract_mentions_system_engine() -> None:
+    msg = str(MissingBackendError("tesseract", "tesseract"))
+    assert "tesseract-ocr" in msg or "brew install tesseract" in msg

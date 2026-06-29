@@ -4,89 +4,315 @@
 
 # perfora
 
-**Digitize player-piano roll scans into a structured, reversible representation
-of holes and text.**
+**Turn a scan or video of a player-piano roll into structured, reversible data:
+every perforation as a note positioned in millimetres, and every printed or
+handwritten label with its location and meaning.**
 
-perfora reads a flat scan or a video of a piano roll and extracts (1) the
-perforations as note events positioned in physical units along the roll, and
-(2) the text on the roll — printed labels and handwritten annotations — each
-with a bounding box and a *scope* connecting it either to the whole roll or to a
-specific stretch of the music. It is a library with clean, documented interfaces
-and a pluggable I/O layer, designed so analysis tools and (later) interactive
-correction UIs can build on top of it.
+perfora measures the roll itself — it does not assume a roll standard. It finds
+the lane spacing from the holes, assembles notes, reads the text, and writes
+everything to a plain, human-readable file you can analyse, archive, or load
+back without losing anything.
 
-perfora implements its own lane-finding and roll-parsing from generic image and
-signal processing primitives; it does not depend on any existing piano-roll
-decoder.
+- **Inputs:** a flat scan (`.png .jpg .tif .bmp .webp`) or a video of the roll
+  moving past a camera (`.mp4 .mov .avi .mkv .webm`).
+- **Output:** a `.perfora.json` document — notes (lane, start/end in mm,
+  confidence), text regions (with scope and bounding box), and a *review queue*
+  of anything the system was unsure about.
+- **Units:** everything is millimetres. Turning millimetres into seconds or MIDI
+  is left to you (a one-line helper is provided), because that depends on how
+  fast the roll was meant to play.
 
-## Status
+---
 
-Pre-implementation. This repository currently contains the design handover for
-building the library. See the docs below.
+## Table of contents
 
-## Documentation
+- [Installation](#installation)
+- [Tutorial: decode your first roll (command line)](#tutorial-decode-your-first-roll-command-line)
+- [Getting good results](#getting-good-results)
+- [Reading text (OCR)](#reading-text-ocr)
+- [Understanding the output file](#understanding-the-output-file)
+- [Using perfora as a Python library](#using-perfora-as-a-python-library)
+- [Troubleshooting](#troubleshooting)
+- [What works today / roadmap](#what-works-today--roadmap)
+- [License](#license)
 
-- [`CLAUDE.md`](CLAUDE.md) — mission, hard constraints, stack, conventions.
-- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — modules, data model,
-  interfaces, the I/O plugin layer, the UI-drivable session (previews,
-  overrides, step-by-step execution), package tree.
-- [`docs/ALGORITHMS.md`](docs/ALGORITHMS.md) — the original algorithms
-  (deskew, hole extraction, spacing auto-detection & lane assignment, note
-  assembly, slit-scan video reconstruction, text scope & timeline association).
-- [`docs/CLI.md`](docs/CLI.md) — command-line interface: batch decode, convert,
-  and the guided interactive mode.
-- [`docs/BUILD_PLAN.md`](docs/BUILD_PLAN.md) — phased implementation plan with
-  per-phase definitions of done and tests.
+---
 
-## Intended usage (vision)
+## Installation
+
+perfora is managed with [uv](https://docs.astral.sh/uv/). From a clone of this
+repository:
+
+```bash
+# core install — enough to decode rolls and read/write the native format
+uv sync
+
+# run the command-line tool
+uv run perfora --help
+```
+
+The core install is intentionally light: it only needs numpy, scipy, pandas,
+scikit-image and OpenCV. Reading the **text** on a roll is optional and lives
+behind *extras* you add only if you want them:
+
+| Extra | Adds | Install |
+|-------|------|---------|
+| `tesseract` | printed-text recognition (Tesseract) | `uv sync --extra tesseract` |
+| `trocr` | handwriting recognition (TrOCR, downloads a model on first use) | `uv sync --extra trocr` |
+| `easyocr` | alternative text detector/recognizer | `uv sync --extra easyocr` |
+| `cli` | nicer interactive prompts and inline previews | `uv sync --extra cli` |
+| `all` | everything above | `uv sync --extra all` |
+
+> **Tesseract needs a system package too.** The `tesseract` extra installs the
+> Python bindings, but you also need the Tesseract engine itself:
+> `apt install tesseract-ocr` (Debian/Ubuntu), `brew install tesseract` (macOS),
+> or the Windows installer. Without it, text detection still runs but printed
+> text is left for review instead of being read.
+
+Everything below assumes you run the tool as `uv run perfora ...`. If you have
+installed perfora into an active environment, you can drop the `uv run` prefix.
+
+---
+
+## Tutorial: decode your first roll (command line)
+
+This walks through digitising a single scan. No programming required.
+
+### 1. Decode a scan
+
+```bash
+uv run perfora -i my_roll.tif -o my_roll.perfora.json --dpi 600
+```
+
+- `-i` is the input scan.
+- `-o` is where to write the result.
+- `--dpi 600` tells perfora the scan resolution so it can report positions in
+  **real millimetres**. Use the DPI your scanner was set to. (See
+  [Getting good results](#getting-good-results) if you don't know it.)
+
+That's it. You now have `my_roll.perfora.json` describing the holes and text.
+
+### 2. Decode a whole folder at once
+
+Give several inputs and a directory as the output; you get one file per input,
+named after the input:
+
+```bash
+uv run perfora -o ./decoded/ --dpi 600 -i scans/*.tif
+# -> decoded/<each-scan-name>.perfora.json
+```
+
+Images and videos can be mixed in the same command — perfora picks the right
+reader from the file extension.
+
+### 3. See what each step did (previews)
+
+If a result looks wrong, ask perfora to save a picture of every stage:
+
+```bash
+uv run perfora -i my_roll.tif -o my_roll.perfora.json --dpi 600 \
+    --preview-dir ./previews
+```
+
+`./previews/` then contains, in order:
+
+```
+my_roll__00_input.png        the image perfora actually works on (deskewed,
+                             and downscaled if the scan was very large)
+my_roll__01_preprocess.png   holes detected as a black/white mask
+my_roll__02_holes.png        each hole boxed
+my_roll__03_lanes.png        the measured lane lines + density profile
+my_roll__04_notes.png        assembled notes, coloured by confidence
+my_roll__05_text.png         text regions, labelled by scope
+```
+
+Open `__03_lanes.png` first: if the vertical lines sit on the columns of holes,
+the lane model is good and the notes will be good.
+
+### 4. List and convert formats
+
+```bash
+uv run perfora formats     # what file formats can be read/written
+```
+
+`perfora convert IN OUT --to FORMAT` re-encodes an existing document between
+registered formats (today the native JSON format is the one that ships; more are
+on the [roadmap](#what-works-today--roadmap)).
+
+---
+
+## Getting good results
+
+**Calibration is the one thing worth getting right.** perfora reports positions
+in millimetres, and it needs to know the pixel-to-mm scale:
+
+- `--dpi N` — best, if you know the scanner resolution.
+- `--physical-width-mm N` — if you don't know the DPI but you can measure the
+  roll's physical width (in mm) with a ruler. perfora divides that by the
+  detected pixel width.
+- If you give neither, perfora still works but positions are in "pixel units"
+  (1 mm = 1 px) and it prints a one-line notice. Pitches and relative timing are
+  still correct; only the absolute millimetre scale is arbitrary.
+
+**Other tips:**
+
+- Scan the roll on a contrasting background so the paper edges are clear; perfora
+  finds the roll, straightens it, and crops to it automatically (small skew is
+  fine).
+- Very large scans (hundreds of MB) are downscaled automatically before
+  processing; the millimetre calibration is adjusted so your numbers stay
+  correct. You can raise the cap with a config file (see
+  [Troubleshooting](#troubleshooting)).
+- Use `--review fail` in batch scripts to make perfora exit non-zero when it was
+  unsure about anything, so you can catch rolls that need a human look.
+
+---
+
+## Reading text (OCR)
+
+With no extras installed, perfora still **finds** text regions and records where
+they are — it just leaves the actual reading to you (each is flagged
+`needs_review`). Install an extra to have the text read automatically:
+
+- `tesseract` for **printed** labels (titles, composer, dynamics).
+- `trocr` for **handwritten** annotations.
+
+```bash
+uv sync --extra tesseract        # plus the system Tesseract engine (see Install)
+uv run perfora -i my_roll.tif -o my_roll.perfora.json --dpi 600
+```
+
+Each text region is given a **scope** that says what it refers to:
+
+- `global_header` / `global_footer` — title/label blocks at the ends of the roll.
+- `global_margin` — notes written in the side margins.
+- `timeline` — text sitting next to the music; perfora links it to the exact
+  notes it spans (e.g. a handwritten "louder" attaches to that passage).
+
+---
+
+## Understanding the output file
+
+A `.perfora.json` file is plain JSON; open it in any editor. The important parts:
+
+- `notes` — a list; each has `lane`, `u_start_mm`, `u_end_mm` (position along the
+  roll), `v_center_mm` (across the roll), and `confidence` (0–1).
+- `texts` — each has the recognised `text`, its `scope`, `bbox_mm`, `confidence`,
+  and `associated_note_ids` (for timeline text).
+- `review_queue` — everything uncertain, with a `reason` (e.g.
+  `low_ocr_confidence`, `ambiguous_lane`, `short_or_noisy_note`) and a pointer to
+  the note or text it concerns. **Nothing is silently dropped** — uncertain
+  results are data you can act on, not lost.
+- `lane_model` — the measured `pitch_mm`, `v0_mm`, `n_lanes` and a `confidence`.
+- `calibration` / `provenance` — how pixels map to mm, and how the file was made.
+
+The format is **lossless and reversible**: reading a file back yields the exact
+same model, so it is safe for archiving.
+
+---
+
+## Using perfora as a Python library
+
+The command line is a thin shell over the library. For analysis you can drive it
+directly:
 
 ```python
 import perfora
 
-# 1. Pick a source; both normalize to the same canonical RollImage.
-src = perfora.ImageSource("roll_scan.tif")          # or perfora.VideoSource("roll.mp4")
+# Decode (both sources normalise to the same internal model).
+doc = perfora.process(perfora.ImageSource("my_roll.tif", dpi=600))
+# or:  perfora.process(perfora.VideoSource("my_roll.mp4", dpi=600))
 
-# 2. Run the pipeline -> internal model (everything in millimetres).
-doc = perfora.process(src)                            # returns a RollDocument
-
-# 3. Inspect results.
+# Notes are in millimetres.
 for note in doc.notes:
     print(note.lane, note.u_start_mm, note.u_end_mm, note.confidence)
 
+# Text, with scope and the notes it annotates.
 for text in doc.texts:
-    print(text.scope, text.text, text.bbox_mm)
+    print(text.scope, repr(text.text), text.associated_note_ids)
 
-# 4. Anything the recognizer was unsure about is queued, not lost.
+# Whatever the system was unsure about — review, don't lose.
 for item in doc.review_queue:
-    print(item.reason, item.ref)
+    print(item.reason, item.ref_kind, item.ref_id)
 
-# 5. Reversible I/O with runtime format selection.
-perfora.write(doc, "roll.perfora.json", format="native-json")
-doc2 = perfora.read("roll.perfora.json")             # round-trips to an identical model
+# Tidy notes as a pandas DataFrame for analysis.
+df = doc.to_dataframe()
 
-# 6. Time is derived, never stored.
+# Reversible I/O with runtime format selection.
+perfora.write(doc, "my_roll.perfora.json")
+doc2 = perfora.read("my_roll.perfora.json")    # == doc
+
+# Millimetres -> seconds is derived, never stored: supply a feed rate.
 seconds = doc.notes[0].duration_seconds(feed_rate_mm_per_s=180.0)
 ```
 
-## Command line
+### Driving the pipeline stage by stage
 
-```bash
-# Decode one or more rolls (image and/or video) in one go.
-uv run perfora --format native_json -o ./out -i scan.png play.mp4
+Every stage is previewable and its key decisions are overridable, via a
+`Session`. This is the surface a correction UI builds on:
 
-# Re-encode an existing document.
-perfora convert roll.perfora.json roll.mid --to midi --feed-rate-mm-s 180
+```python
+from perfora import Session
 
-# List available read/write formats (including third-party plugins).
-perfora formats
+s = Session(perfora.ImageSource("my_roll.tif", dpi=600))
+s.run_all()
 
-# Guided, step-by-step decode: preview each stage, adjust, re-run, fix OCR.
-perfora interactive -i scan.png -o roll.perfora.json
+# Disagree with the measured pitch? Force it and re-run only what changed.
+s.apply_override(lane_pitch_mm=3.0)
+s.rerun_from("lanes")          # recomputes lanes -> notes -> text, not the decode
+doc = s.ctx.to_document()
 ```
 
-The interactive mode drives the same `Session` a future GUI uses, so corrections
-made in the terminal exercise exactly the surface the GUI will build on.
+Tunable thresholds live in a single `perfora.config.Config`; pass one to
+`process(..., config=...)` or via `--config file.json` on the command line.
+
+---
+
+## Troubleshooting
+
+**"no lanes detected / unreadable input" (exit code 3).** perfora could not find
+a periodic hole pattern. Usually the scan is too low-resolution, too noisy, or
+the holes did not threshold cleanly. Try a higher-quality scan, pass the correct
+`--dpi`, or save `--preview-dir` and check `__01_preprocess.png` — if the holes
+are not white-on-black there, force the polarity with a config file:
+`{"binarization_mode": "bright_holes"}` (or `"dark_holes"`).
+
+**A huge scan used to crash; now it is downscaled.** Scans whose longest side
+exceeds 16000 px are shrunk before processing (millimetre numbers stay correct).
+To keep more detail on a very long roll, raise the cap:
+
+```bash
+echo '{"max_image_px": 30000}' > cfg.json     # stay under 32767
+uv run perfora -i big_roll.jp2 -o out.perfora.json --dpi 600 --config cfg.json
+```
+
+**Printed text is not being read** even though detection works. Install the
+`tesseract` extra **and** the system Tesseract engine (see
+[Installation](#installation)). Without the engine, text regions are detected
+but left in the review queue.
+
+**Exit codes:** `0` success · `2` usage error · `3` no lanes / unreadable input ·
+`4` the review queue was non-empty and you passed `--review fail`.
+
+---
+
+## What works today / roadmap
+
+**Available now:** image and video decoding (holes → lanes → notes), offline text
+detection with optional Tesseract/TrOCR/EasyOCR recognition, the lossless
+`native-json` format, and the batch CLI (`process`, `convert`, `formats`).
+
+**Planned:**
+
+- A guided **interactive** CLI (`perfora interactive`) to step through a roll,
+  preview each stage, and fix OCR/lane decisions in the terminal.
+- A **MIDI** export (`perfora convert roll.perfora.json roll.mid --to midi`).
+- A lane→pitch mapping pass to fill in MIDI note numbers.
+- Hardening on real-world scans and an interactive correction GUI.
+
+The design behind all of this lives in [`docs/`](docs/): `ARCHITECTURE.md`,
+`ALGORITHMS.md`, `CLI.md`, and `BUILD_PLAN.md`.
 
 ## License
 
-TBD by the project owner.
+See [`LICENSE`](LICENSE).
