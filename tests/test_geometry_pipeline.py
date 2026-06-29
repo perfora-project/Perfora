@@ -58,13 +58,26 @@ def test_lane_assignment_skewed() -> None:
 
 
 def test_note_assembly_bridging() -> None:
-    # chain-perforated notes (gaps < bridge distance) must merge into one note
+    # chain-perforated rolls merge their tight runs into one note WHEN a
+    # bridge gap is configured for them (the default is conservative)
     spec = RollSpec(chain=True, n_lanes=8)
     bgr, gt = render(spec)
-    doc = perfora.process(ImageSource(bgr, dpi=spec.dpi))
-    # one note per lane (not many fragments)
-    assert len(doc.notes) == len(gt.notes)
+    cfg = Config(bridge_gap_mm=1.5)
+    doc = perfora.process(ImageSource(bgr, dpi=spec.dpi, config=cfg), config=cfg)
+    assert len(doc.notes) == len(gt.notes)  # one note per lane, not fragments
     assert _match_notes(doc.notes, gt.notes, tol_mm=2.5) == len(gt.notes)
+
+
+def test_distinct_notes_not_over_merged() -> None:
+    # with the conservative default, two perforations in a lane separated by a
+    # clear gap stay as two notes (other lanes give the pitch its periodicity)
+    notes = [(lane, 10.0, 20.0) for lane in range(8)]
+    notes.append((3, 24.0, 34.0))  # second note in lane 3, 4 mm after the first
+    spec = RollSpec(n_lanes=8, notes=notes)
+    bgr, _gt = render(spec)
+    doc = perfora.process(ImageSource(bgr, dpi=spec.dpi))
+    lane3 = [n for n in doc.notes if n.lane == 3]
+    assert len(lane3) == 2
 
 
 def test_calibration_dpi_vs_physical_width() -> None:

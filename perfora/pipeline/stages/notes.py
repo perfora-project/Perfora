@@ -76,7 +76,7 @@ class NoteAssembly:
         cfg = ctx.config
         mm_u = ctx.image.calibration.mm_per_px_u
         mm_v = ctx.image.calibration.mm_per_px_v
-        bridge_gap_mm = cfg.bridge_gap_frac * lane_model.pitch_mm
+        bridge_gap_mm = cfg.bridge_gap_mm
         tol_mm = cfg.lane_tol_frac * lane_model.pitch_mm
 
         skew_mm = float(ctx.debug.get("lane_skew_mm", 0.0))  # type: ignore[arg-type]

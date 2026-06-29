@@ -60,7 +60,11 @@ class Config:
     lane_skew_steps: int = 61
 
     # Note assembly (§5)
-    bridge_gap_frac: float = 0.5  # bridge gap as a fraction of lane pitch
+    # Max gap (mm, along the roll) between consecutive perforations in a lane
+    # that is bridged into one note. Small and resolution-independent so only
+    # true chain-perforation gaps merge, not distinct notes. Set to 0.0 to
+    # disable merging entirely (every perforation becomes its own note).
+    bridge_gap_mm: float = 0.5
     min_note_len_mm: float = 1.0
     note_conf_min: float = 0.5
 
