@@ -26,9 +26,62 @@ from perfora.errors import PerforaError
 from perfora.model.calibration import Calibration
 from perfora.model.document import Provenance
 from perfora.sources.base import RollImage
-from perfora.utils.imaging import find_page_quad, four_point_warp, order_corners
+from perfora.utils.imaging import (
+    background_color,
+    deskew_angle_from_region,
+    foreground_mask,
+    four_point_warp,
+    largest_filled_region,
+    order_corners,
+)
 
 __all__ = ["ImageSource"]
+
+
+def _segment_deskew_crop(
+    color: NDArray[Any], gray: NDArray[Any], cfg: Config
+) -> tuple[NDArray[Any], NDArray[Any], NDArray[Any]] | None:
+    """Isolate the roll by background-keying, deskew it, and crop to it.
+
+    Returns ``(color, gray, roll_mask)`` cropped to the roll, or ``None`` when
+    there is no clear roll-vs-background separation (e.g. the roll fills the
+    whole frame) so the caller can fall back to the page-quad path.
+    """
+    bg = background_color(color)
+    region = largest_filled_region(foreground_mask(color, bg))
+    area_frac = float(region.mean())
+    if area_frac < cfg.min_roll_area_frac or area_frac > 0.999:
+        return None
+
+    # deskew_angle_from_region measures the skew; rotate by its negative to undo
+    angle = deskew_angle_from_region(region)
+    if abs(angle) > 0.02:
+        h, w = gray.shape[:2]
+        rot = cv2.getRotationMatrix2D((w / 2.0, h / 2.0), -angle, 1.0)
+        bg_val = tuple(float(c) for c in bg)
+        color = cv2.warpAffine(
+            color, rot, (w, h), flags=cv2.INTER_LINEAR, borderValue=bg_val
+        )
+        gray = cv2.warpAffine(
+            gray, rot, (w, h), flags=cv2.INTER_LINEAR, borderValue=float(np.mean(bg))
+        )
+        region = (
+            cv2.warpAffine(
+                region.astype(np.uint8), rot, (w, h), flags=cv2.INTER_NEAREST
+            )
+            > 0
+        )
+
+    ys, xs = np.where(region)
+    if ys.size == 0:
+        return None
+    y0, y1 = int(ys.min()), int(ys.max()) + 1
+    x0, x1 = int(xs.min()), int(xs.max()) + 1
+    return (
+        color[y0:y1, x0:x1],
+        gray[y0:y1, x0:x1],
+        np.ascontiguousarray(region[y0:y1, x0:x1]),
+    )
 
 
 class ImageSource:
@@ -142,39 +195,35 @@ class ImageSource:
             gray = cv2.resize(gray, (new_w, new_h), interpolation=cv2.INTER_AREA)
 
         # ---------------------------------------------------------------- #
-        # 2.  Detect the page quadrilateral
+        # 2-3. Isolate the roll. Default: background-keyed segmentation +
+        #      edge deskew + crop (handles non-rectangular rolls, e.g. a
+        #      narrowing leader, and carries a roll mask). Fallback: page-quad
+        #      perspective warp when corners are supplied or no clear
+        #      roll-vs-background separation exists.
         # ---------------------------------------------------------------- #
-        quad: NDArray[np.float32]
+        work_color: NDArray[Any]
+        work_gray: NDArray[Any]
+        work_mask: NDArray[Any] | None = None
 
         if self._page_corners_px is not None:
             pts = np.array(self._page_corners_px, dtype=np.float32) * scale
             quad = order_corners(pts)
+            work_color = four_point_warp(color, quad)
+            work_gray = four_point_warp(gray, quad)
         else:
-            detected = find_page_quad(
-                gray,
-                blur_sigma=cfg.deskew_blur_sigma,
-                canny_low=cfg.canny_low,
-                canny_high=cfg.canny_high,
-                eps_frac=cfg.page_approx_eps_frac,
-                min_area_frac=cfg.min_page_area_frac,
-            )
-            quad = (
-                detected
-                if detected is not None
-                else self._fallback_quad(gray, cfg)
-            )
-
-        # ---------------------------------------------------------------- #
-        # 3.  Perspective-warp both color and gray to a tight rectangle
-        # ---------------------------------------------------------------- #
-        warped_color: NDArray[Any] = four_point_warp(color, quad)
-        warped_gray: NDArray[Any] = four_point_warp(gray, quad)
+            seg = _segment_deskew_crop(color, gray, cfg)
+            if seg is not None:
+                work_color, work_gray, work_mask = seg
+            else:
+                quad = self._fallback_quad(gray, cfg)
+                work_color = four_point_warp(color, quad)
+                work_gray = four_point_warp(gray, quad)
 
         # ---------------------------------------------------------------- #
         # 4.  Orient so that rows = u (travel) = long axis
         # ---------------------------------------------------------------- #
-        warp_h: int = int(warped_gray.shape[0])
-        warp_w: int = int(warped_gray.shape[1])
+        warp_h: int = int(work_gray.shape[0])
+        warp_w: int = int(work_gray.shape[1])
         orient = self._orientation
 
         if orient is None or orient == "auto":
@@ -186,14 +235,22 @@ class ImageSource:
 
         if should_rotate:
             final_color: NDArray[Any] = cv2.rotate(
-                warped_color, cv2.ROTATE_90_CLOCKWISE
+                work_color, cv2.ROTATE_90_CLOCKWISE
             )
             final_gray: NDArray[Any] = cv2.rotate(
-                warped_gray, cv2.ROTATE_90_CLOCKWISE
+                work_gray, cv2.ROTATE_90_CLOCKWISE
+            )
+            final_mask: NDArray[Any] | None = (
+                cv2.rotate(
+                    work_mask.astype(np.uint8), cv2.ROTATE_90_CLOCKWISE
+                ).astype(bool)
+                if work_mask is not None
+                else None
             )
         else:
-            final_color = warped_color
-            final_gray = warped_gray
+            final_color = work_color
+            final_gray = work_gray
+            final_mask = work_mask
 
         # ---------------------------------------------------------------- #
         # 5.  Calibration  (uses FINAL oriented width = shape[1] in px)
@@ -244,6 +301,7 @@ class ImageSource:
             calibration=cal,
             provenance=prov,
             color=final_color,
+            roll_mask=final_mask,
         )
 
     # ------------------------------------------------------------------ #

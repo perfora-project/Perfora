@@ -11,8 +11,100 @@ from typing import Any
 import cv2
 import numpy as np
 from numpy.typing import NDArray
+from scipy import ndimage
 
-__all__ = ["order_corners", "find_page_quad", "four_point_warp"]
+__all__ = [
+    "background_color",
+    "deskew_angle_from_region",
+    "find_page_quad",
+    "foreground_mask",
+    "four_point_warp",
+    "largest_filled_region",
+    "order_corners",
+]
+
+
+def background_color(bgr: NDArray[Any], frac: float = 0.02) -> NDArray[np.float64]:
+    """Estimate the background colour from a border ring (robust median, BGR).
+
+    The scan border is almost always background, and the background is the one
+    reliably-uniform thing in a roll scan — so we key on it rather than on the
+    roll's (possibly non-uniform) colour.
+    """
+    h, w = bgr.shape[:2]
+    r = max(2, int(frac * min(h, w)))
+    img = bgr if bgr.ndim == 3 else cv2.cvtColor(bgr, cv2.COLOR_GRAY2BGR)
+    ring = np.concatenate(
+        [
+            img[:r].reshape(-1, 3),
+            img[-r:].reshape(-1, 3),
+            img[:, :r].reshape(-1, 3),
+            img[:, -r:].reshape(-1, 3),
+        ]
+    )
+    return np.asarray(np.median(ring, axis=0), dtype=np.float64)
+
+
+def foreground_mask(
+    bgr: NDArray[Any], bg: NDArray[np.float64], min_dist: float = 18.0
+) -> NDArray[np.bool_]:
+    """Boolean mask of pixels that differ from the background colour ``bg``.
+
+    The threshold is Otsu on the colour-distance image, floored at ``min_dist``
+    so a near-uniform image does not produce a noise mask.
+    """
+    img = bgr if bgr.ndim == 3 else cv2.cvtColor(bgr, cv2.COLOR_GRAY2BGR)
+    dist = np.linalg.norm(img.astype(np.float32) - bg, axis=2)
+    otsu, _ = cv2.threshold(
+        dist.astype(np.uint8), 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
+    )
+    thr = max(min_dist, float(otsu))
+    return np.asarray(dist > thr, dtype=np.bool_)
+
+
+def largest_filled_region(mask: NDArray[np.bool_]) -> NDArray[np.bool_]:
+    """Largest connected component of ``mask``, interior holes filled.
+
+    Filling means a perforation (a background-coloured island) is part of the
+    returned roll *region*, while still being absent from the foreground mask —
+    so ``region & ~foreground`` recovers the perforations.
+    """
+    opened = ndimage.binary_opening(mask, iterations=1)
+    labels, n = ndimage.label(opened)
+    if n == 0:
+        return np.zeros_like(mask, dtype=np.bool_)
+    sizes = ndimage.sum(np.ones_like(labels), labels, index=range(1, n + 1))
+    biggest = 1 + int(np.argmax(sizes))
+    region = labels == biggest
+    return np.asarray(ndimage.binary_fill_holes(region), dtype=np.bool_)
+
+
+def deskew_angle_from_region(
+    region: NDArray[np.bool_], body_frac: float = 0.92
+) -> float:
+    """Estimate the skew angle (degrees) from a roll region's straight sides.
+
+    Fits the left and right boundary columns against the row index over the
+    *full-width body* rows only (those at least ``body_frac`` of the maximum
+    width), so a narrowing leader's slanted edges do not bias the estimate, and
+    averages the two slopes. Returns the measured skew; rotate by its negative
+    to make the sides vertical.
+    """
+    widths = region.sum(axis=1)
+    if widths.max() == 0:
+        return 0.0
+    body_rows = np.where(widths >= body_frac * widths.max())[0]
+    if body_rows.size < 16:
+        return 0.0
+    lefts = np.argmax(region[body_rows], axis=1).astype(np.float64)
+    rights = (
+        region.shape[1] - 1 - np.argmax(region[body_rows, ::-1], axis=1)
+    ).astype(np.float64)
+    rows = body_rows.astype(np.float64)
+    slope_left = float(np.polyfit(rows, lefts, 1)[0])
+    slope_right = float(np.polyfit(rows, rights, 1)[0])
+    slope = 0.5 * (slope_left + slope_right)
+    return float(np.degrees(np.arctan(slope)))
 
 
 def order_corners(pts: NDArray[Any]) -> NDArray[np.float32]:

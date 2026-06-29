@@ -25,11 +25,15 @@ class Config:
     canny_high: float = 150.0
     page_approx_eps_frac: float = 0.02
     min_page_area_frac: float = 0.2
+    # Background-keyed segmentation: the roll must occupy at least this fraction
+    # of the frame for segmentation to be trusted (else fall back to page-quad).
+    min_roll_area_frac: float = 0.05
     # Cap on the working image size (px, longest side). Larger scans are
-    # downscaled before processing — OpenCV's perspective warp requires every
-    # dimension < 32767, and huge scans are memory-heavy. The calibration is
-    # adjusted so millimetre geometry is unchanged.
-    max_image_px: int = 16000
+    # downscaled before processing — OpenCV's warp/remap requires every
+    # dimension < 32767 and huge scans are memory-heavy. The default sits just
+    # under that hard limit so long rolls keep their resolution; the calibration
+    # is adjusted on downscale so millimetre geometry is unchanged.
+    max_image_px: int = 32000
 
     # Preprocess / binarization (§2)
     binarization_mode: str = "auto"  # "auto"|"bright_holes"|"dark_holes"|"adaptive"
@@ -49,6 +53,11 @@ class Config:
     pitch_agree_tol: float = 0.05
     n_windows: int = 8
     lane_tol_frac: float = 0.25
+    # Residual-skew search: the column-vs-row slope that makes lanes vertical is
+    # searched in [-lane_skew_max, lane_skew_max] over this many steps. The max
+    # (~0.7 degrees) mops up drift a coarse deskew leaves on very long rolls.
+    lane_skew_max: float = 0.012
+    lane_skew_steps: int = 61
 
     # Note assembly (§5)
     bridge_gap_frac: float = 0.5  # bridge gap as a fraction of lane pitch

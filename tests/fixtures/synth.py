@@ -63,6 +63,12 @@ class RollSpec:
     chain_gap_mm: float = 0.8
     pad_frac: float = 0.12  # background border, as a fraction of the larger side
     seed: int = 0
+    # realistic (render_realistic) options: a coloured roll on a plain
+    # background, with a narrowing leader and bed-through holes.
+    cone_leader_mm: float = 0.0  # length of the narrowing top leader (0 = none)
+    cone_top_frac: float = 0.12  # leader top width as a fraction of full width
+    material_bgr: tuple[int, int, int] = (40, 40, 190)  # roll colour (reddish)
+    background_bgr: tuple[int, int, int] = (255, 255, 255)  # scanner bed/background
 
     @property
     def v0_mm(self) -> float:
@@ -287,3 +293,76 @@ def _ground_truth(
         texts=[],
         review_queue=[],
     )
+
+
+def realistic_default_notes(spec: RollSpec) -> list[tuple[int, float, float]]:
+    """Notes placed in the body (below the leader) for the realistic renderer."""
+    notes: list[tuple[int, float, float]] = []
+    floor = spec.cone_leader_mm + 5.0
+    usable = spec.roll_length_mm - 5.0
+    for lane in range(spec.n_lanes):
+        u0 = floor + (lane % 5) * 4.0
+        u1 = min(u0 + 8.0 + (lane % 4) * 6.0, usable)
+        if u1 > u0:
+            notes.append((lane, u0, u1))
+    return notes
+
+
+def render_realistic(spec: RollSpec) -> tuple[NDArray[np.uint8], RollDocument]:
+    """Render a realistic colour roll: coloured material on a plain background,
+    a narrowing top leader (``cone_leader_mm``), and **bed-through** holes (the
+    perforations show the background colour). Returns ``(bgr, ground_truth)``.
+    """
+    rng = np.random.default_rng(spec.seed)
+    ppmm = spec.dpi / 25.4
+    roll_h = int(round(spec.roll_length_mm * ppmm))
+    roll_w = int(round(spec.roll_width_mm * ppmm))
+    pad = int(round(spec.pad_frac * max(roll_h, roll_w))) + 10
+    big_h, big_w = roll_h + 2 * pad, roll_w + 2 * pad
+
+    bg = np.array(spec.background_bgr, dtype=np.uint8)
+    canvas = np.empty((big_h, big_w, 3), dtype=np.uint8)
+    canvas[:] = bg
+
+    # Roll outline: a cone (trapezoid) leader merged with the full-width body.
+    cx = pad + roll_w / 2.0
+    cone_rows = int(round(spec.cone_leader_mm * ppmm))
+    top_half = max(2.0, spec.cone_top_frac * roll_w / 2.0)
+    full_half = roll_w / 2.0
+    cone_bottom = pad + cone_rows
+    poly = np.array(
+        [
+            [cx - top_half, pad],
+            [cx + top_half, pad],
+            [cx + full_half, cone_bottom],
+            [cx + full_half, pad + roll_h],
+            [cx - full_half, pad + roll_h],
+            [cx - full_half, cone_bottom],
+        ],
+        dtype=np.int32,
+    )
+    cv2.fillPoly(canvas, [poly], tuple(int(c) for c in spec.material_bgr))
+
+    # Bed-through perforations (background colour) for each note.
+    notes = spec.notes if spec.notes is not None else realistic_default_notes(spec)
+    for lane, u0_mm, u1_mm in notes:
+        vc = int(round(pad + spec.lane_v_center_mm(lane) * ppmm))
+        u0 = int(round(pad + u0_mm * ppmm))
+        u1 = int(round(pad + u1_mm * ppmm))
+        half_w = max(1, int(round(spec.pitch_mm * spec.hole_width_frac * ppmm / 2.0)))
+        canvas[u0:u1, vc - half_w : vc + half_w + 1] = bg
+
+    if spec.noise > 0:
+        noisy = canvas.astype(np.float64) + rng.normal(0.0, spec.noise, canvas.shape)
+        canvas = np.clip(noisy, 0, 255).astype(np.uint8)
+    if spec.skew_deg != 0.0:
+        rot = cv2.getRotationMatrix2D((big_w / 2.0, big_h / 2.0), spec.skew_deg, 1.0)
+        canvas = cv2.warpAffine(
+            canvas,
+            rot,
+            (big_w, big_h),
+            flags=cv2.INTER_LINEAR,
+            borderValue=tuple(int(c) for c in spec.background_bgr),
+        )
+
+    return canvas.astype(np.uint8), _ground_truth(spec, notes)

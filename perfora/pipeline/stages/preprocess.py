@@ -19,7 +19,7 @@ from perfora.pipeline.stages.base import InteractionField
 if TYPE_CHECKING:
     from perfora.pipeline.context import PipelineContext
 
-__all__ = ["Preprocess", "binarize"]
+__all__ = ["Preprocess", "binarize", "binarize_in_roll"]
 
 _MODES: list[object] = ["auto", "bright_holes", "dark_holes", "adaptive"]
 
@@ -59,7 +59,7 @@ def binarize(
     pixels is assumed to be the perforations, because holes are always a
     minority of pixels on a roll image.
     """
-    from skimage import filters, morphology
+    from skimage import filters
 
     g = np.asarray(gray, dtype=np.float64)
 
@@ -90,6 +90,15 @@ def binarize(
     # max_size N removes objects with size <= N (i.e. keeps objects with size
     # >= N+1), so max_size = speckle_min_area_px - 1 mirrors the old
     # min_size = speckle_min_area_px semantics (keep size >= speckle_min_area_px).
+    return _clean(raw, speckle_min_area_px, opening_kernel_px)
+
+
+def _clean(
+    raw: NDArray[Any], speckle_min_area_px: int, opening_kernel_px: int
+) -> NDArray[np.bool_]:
+    """Remove speckle and detach touching blobs from a raw boolean mask."""
+    from skimage import morphology
+
     cleaned = morphology.remove_small_objects(
         np.asarray(raw, dtype=np.bool_),
         max_size=max(0, speckle_min_area_px - 1),
@@ -97,6 +106,39 @@ def binarize(
     fp = np.ones((max(1, opening_kernel_px), max(1, opening_kernel_px)), dtype=bool)
     opened = morphology.opening(cleaned, footprint=fp)
     return cast("NDArray[np.bool_]", np.asarray(opened, dtype=np.bool_))
+
+
+def binarize_in_roll(
+    gray: NDArray[Any],
+    roll_mask: NDArray[np.bool_],
+    mode: str,
+    *,
+    speckle_min_area_px: int,
+    opening_kernel_px: int,
+) -> NDArray[np.bool_]:
+    """Binarize **within** a roll mask: a perforation is a spot that looks like
+    the background (the bed seen through the hole).
+
+    The polarity is decided from the roll's own pixels (the perforations are a
+    minority), so this works whether holes are brighter (white bed) or darker
+    (dark backing) than the roll material, and background outside the roll can
+    never be mistaken for a hole.
+    """
+    from skimage import filters
+
+    g = np.asarray(gray, dtype=np.float64)
+    roll_vals = g[roll_mask]
+    if roll_vals.size == 0:
+        return np.zeros(g.shape, dtype=np.bool_)
+    thr = float(filters.threshold_otsu(roll_vals))  # type: ignore[no-untyped-call]
+
+    resolved = mode
+    if resolved in ("auto", "adaptive"):
+        bright_frac = float(np.mean(roll_vals > thr))
+        resolved = "bright_holes" if bright_frac < 0.5 else "dark_holes"
+    raw = (g > thr) if resolved == "bright_holes" else (g < thr)
+    raw = raw & roll_mask
+    return _clean(raw, speckle_min_area_px, opening_kernel_px)
 
 
 class Preprocess:
@@ -122,12 +164,22 @@ class Preprocess:
             ``ctx.mask`` is written as a ``bool`` array.
         """
         mode = ctx.overrides.binarization_mode or ctx.config.binarization_mode
-        ctx.mask = binarize(
-            ctx.image.gray,
-            mode,
-            speckle_min_area_px=ctx.config.speckle_min_area_px,
-            opening_kernel_px=ctx.config.opening_kernel_px,
-        )
+        roll_mask = ctx.image.roll_mask
+        if roll_mask is not None:
+            ctx.mask = binarize_in_roll(
+                ctx.image.gray,
+                np.asarray(roll_mask, dtype=np.bool_),
+                mode,
+                speckle_min_area_px=ctx.config.speckle_min_area_px,
+                opening_kernel_px=ctx.config.opening_kernel_px,
+            )
+        else:
+            ctx.mask = binarize(
+                ctx.image.gray,
+                mode,
+                speckle_min_area_px=ctx.config.speckle_min_area_px,
+                opening_kernel_px=ctx.config.opening_kernel_px,
+            )
 
     def preview(self, ctx: PipelineContext) -> StagePreview:
         """Return a preview summarising the mask.

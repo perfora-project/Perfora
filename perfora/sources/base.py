@@ -37,6 +37,10 @@ class RollImage:
     calibration: Calibration
     provenance: Provenance
     color: NDArray[Any] | None = None
+    # Foreground/roll mask (True = roll material region) in the oriented frame,
+    # when the source isolated the roll by background-keying. Lets downstream
+    # stages restrict hole detection to the roll and ignore the background.
+    roll_mask: NDArray[Any] | None = None
 
 
 @runtime_checkable

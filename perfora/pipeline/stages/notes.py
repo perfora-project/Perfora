@@ -27,12 +27,21 @@ __all__ = ["NoteAssembly"]
 
 
 def _group_by_lane(
-    holes: list[Hole], lane_model: LaneModel, mm_v: float
+    holes: list[Hole],
+    lane_model: LaneModel,
+    mm_v: float,
+    mm_u: float,
+    skew_mm: float,
 ) -> dict[int, list[tuple[Hole, float]]]:
-    """Group holes by nearest lane, carrying each hole's signed residual (mm)."""
+    """Group holes by nearest lane, carrying each hole's signed residual (mm).
+
+    ``skew_mm`` is the measured lane drift (v per u, mm/mm): the hole's column is
+    corrected by ``skew_mm * u`` before assignment so a long roll's residual
+    skew does not push end-of-roll notes into the wrong lane.
+    """
     groups: dict[int, list[tuple[Hole, float]]] = {}
     for h in holes:
-        v_mm = h.centroid_px[1] * mm_v
+        v_mm = h.centroid_px[1] * mm_v - skew_mm * (h.centroid_px[0] * mm_u)
         lane, residual = lane_model.nearest_lane(v_mm)
         groups.setdefault(lane, []).append((h, residual))
     return groups
@@ -70,9 +79,10 @@ class NoteAssembly:
         bridge_gap_mm = cfg.bridge_gap_frac * lane_model.pitch_mm
         tol_mm = cfg.lane_tol_frac * lane_model.pitch_mm
 
+        skew_mm = float(ctx.debug.get("lane_skew_mm", 0.0))  # type: ignore[arg-type]
         notes: list[NoteEvent] = []
         ambiguous: list[bool] = []  # per-note: contained an ambiguous hole
-        groups = _group_by_lane(ctx.holes, lane_model, mm_v)
+        groups = _group_by_lane(ctx.holes, lane_model, mm_v, mm_u, skew_mm)
         for lane in sorted(groups):
             members = sorted(groups[lane], key=lambda hr: hr[0].bbox_px[0])
             runs = _build_runs(members, mm_u, bridge_gap_mm)
