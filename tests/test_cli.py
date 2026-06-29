@@ -262,3 +262,9 @@ def test_cli_preview_dir(tmp_path: Path) -> None:
     names = {f.name for f in png_files}
     # At least one meaningful stage preview must exist
     assert any("lanes" in n or "holes" in n or "notes" in n for n in names)
+    # Stage 0 holds the input image the pipeline actually uses
+    assert any(n.endswith("__00_input.png") for n in names)
+    # Files carry a zero-padded numeric prefix so a browser sorts them in order
+    suffixes = sorted(n.split("__", 1)[1] for n in names)
+    assert suffixes[0].startswith("00_")
+    assert any(s.startswith("01_") for s in suffixes)

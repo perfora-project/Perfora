@@ -28,6 +28,15 @@ class LaneDetectionError(PerforaError):
     """
 
 
+# Optional backends that also need a non-Python system package installed.
+_SYSTEM_REQUIREMENTS: dict[str, str] = {
+    "tesseract": (
+        "It also needs the Tesseract OCR engine itself "
+        "(e.g. `apt install tesseract-ocr` or `brew install tesseract`)."
+    ),
+}
+
+
 class MissingBackendError(PerforaError):
     """Raised when an optional OCR backend is selected but its extra is absent."""
 
@@ -38,9 +47,14 @@ class MissingBackendError(PerforaError):
         self.backend = backend
         self.extra = extra
         message = (
-            f"Backend {backend!r} is unavailable. "
-            f"Install it with: pip install perfora[{extra}]"
+            f"The {backend!r} backend is not installed. Add the optional "
+            f"dependency with `uv sync --extra {extra}` (or "
+            f"`pip install 'perfora[{extra}]'`). "
+            "See the Installation section of the README."
         )
+        system = _SYSTEM_REQUIREMENTS.get(extra)
+        if system:
+            message = f"{message} {system}"
         super().__init__(message)
 
 

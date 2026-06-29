@@ -24,13 +24,14 @@ import json
 import os
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING, NoReturn
+from typing import TYPE_CHECKING, Any, NoReturn
 
 from perfora.config import Config
 from perfora.errors import FormatError, LaneDetectionError, PerforaError
 
 if TYPE_CHECKING:
     from perfora.model.document import RollDocument
+    from perfora.pipeline.session import Session
     from perfora.sources.base import Source
 
 # ---------------------------------------------------------------------------
@@ -270,16 +271,35 @@ def _process_one(
     write_document(doc, out, format=format_id)
 
     if preview_dir is not None:
-        preview_dir.mkdir(parents=True, exist_ok=True)
-        stem = Path(inp).stem
-        for stage in session.stages:
-            prev = session.preview(stage.name)
-            if prev is not None:
-                canvas = prev.rasterize(session.ctx.image)
-                fname = preview_dir / f"{stem}__{stage.name}.png"
-                cv2.imwrite(str(fname), canvas)
+        _write_stage_previews(session, inp, preview_dir, cv2)
 
     return doc
+
+
+def _write_stage_previews(
+    session: Session, inp: str, preview_dir: Path, cv2: Any
+) -> None:
+    """Write one numbered PNG per stage (plus the input the system uses).
+
+    Files are prefixed with a zero-padded index so a file browser lists them in
+    pipeline order: ``00_input`` is the canonical image the pipeline actually
+    works on (deskewed and, for large scans, downscaled), then ``01_preprocess``,
+    ``02_holes``, and so on.
+    """
+    preview_dir.mkdir(parents=True, exist_ok=True)
+    stem = Path(inp).stem
+    ctx_image = session.ctx.image
+
+    # Stage 0: the input image as the pipeline uses it.
+    base = ctx_image.color if ctx_image.color is not None else ctx_image.gray
+    cv2.imwrite(str(preview_dir / f"{stem}__00_input.png"), base)
+
+    for i, stage in enumerate(session.stages, start=1):
+        prev = session.preview(stage.name)
+        if prev is not None:
+            canvas = prev.rasterize(ctx_image)
+            fname = preview_dir / f"{stem}__{i:02d}_{stage.name}.png"
+            cv2.imwrite(str(fname), canvas)
 
 
 # ---------------------------------------------------------------------------
