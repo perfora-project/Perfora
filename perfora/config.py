@@ -25,6 +25,11 @@ class Config:
     canny_high: float = 150.0
     page_approx_eps_frac: float = 0.02
     min_page_area_frac: float = 0.2
+    # Cap on the working image size (px, longest side). Larger scans are
+    # downscaled before processing — OpenCV's perspective warp requires every
+    # dimension < 32767, and huge scans are memory-heavy. The calibration is
+    # adjusted so millimetre geometry is unchanged.
+    max_image_px: int = 16000
 
     # Preprocess / binarization (§2)
     binarization_mode: str = "auto"  # "auto"|"bright_holes"|"dark_holes"|"adaptive"

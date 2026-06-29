@@ -125,12 +125,29 @@ class ImageSource:
         gray: NDArray[Any] = cv2.cvtColor(color, cv2.COLOR_BGR2GRAY)
 
         # ---------------------------------------------------------------- #
+        # 1b. Downscale oversized scans before warping.
+        #     OpenCV's warpPerspective/remap asserts every dimension < 32767,
+        #     and very large scans are memory-heavy. We shrink so the longest
+        #     side <= config.max_image_px and fold the factor into the
+        #     calibration so millimetre geometry is preserved.
+        # ---------------------------------------------------------------- #
+        scale = 1.0
+        longest = max(gray.shape[0], gray.shape[1])
+        limit = max(1, int(cfg.max_image_px))
+        if longest > limit:
+            scale = limit / longest
+            new_w = max(1, int(round(gray.shape[1] * scale)))
+            new_h = max(1, int(round(gray.shape[0] * scale)))
+            color = cv2.resize(color, (new_w, new_h), interpolation=cv2.INTER_AREA)
+            gray = cv2.resize(gray, (new_w, new_h), interpolation=cv2.INTER_AREA)
+
+        # ---------------------------------------------------------------- #
         # 2.  Detect the page quadrilateral
         # ---------------------------------------------------------------- #
         quad: NDArray[np.float32]
 
         if self._page_corners_px is not None:
-            pts = np.array(self._page_corners_px, dtype=np.float32)
+            pts = np.array(self._page_corners_px, dtype=np.float32) * scale
             quad = order_corners(pts)
         else:
             detected = find_page_quad(
@@ -185,11 +202,14 @@ class ImageSource:
         cal: Calibration
 
         if self._dpi is not None:
-            mm_per_px = 25.4 / self._dpi
+            # After downscaling by ``scale``, one working pixel spans
+            # ``1/scale`` original pixels, so mm/px grows accordingly; the
+            # effective DPI drops to ``dpi * scale``.
+            mm_per_px = (25.4 / self._dpi) / scale
             cal = Calibration(
                 mm_per_px_u=mm_per_px,
                 mm_per_px_v=mm_per_px,
-                dpi=self._dpi,
+                dpi=self._dpi * scale,
                 source="dpi",
             )
         elif self._physical_width_mm is not None:
