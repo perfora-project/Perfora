@@ -101,6 +101,32 @@ lazily and only when a backend that needs them is selected.
   over assumed, reversible over lossy, and "add to review queue" over "guess
   silently".
 
+## Documentation is part of "done"
+
+Every **validated** change (behaviour, defaults, config, CLI, public API, or
+workflow) must propagate to *all* forms of documentation in the same change —
+documentation is not a follow-up. A change is not finished until:
+
+1. **`README.md`** — the user-facing guide (install, CLI tutorial, configuration,
+   troubleshooting, library usage, works-now/roadmap) reflects the new
+   behaviour. Keep examples runnable and honest about what ships today.
+2. **`CLAUDE.md`** — this contract is updated if constraints, stack, conventions,
+   or workflow changed.
+3. **The Sphinx docs in `docs/`** (Sphinx + napoleon + myst-parser, hosted on
+   Read the Docs) — these largely auto-generate, so keep the *sources* current:
+   - API reference comes from the **NumPy-style docstrings** — update them when
+     signatures/behaviour change.
+   - The configuration reference comes from the **`#:` attribute comments on
+     `Config` fields** in `perfora/config.py` — update the comment when you add,
+     remove, or change a field (and the `Config` table in the README).
+   - `docs/index.md` includes `README.md`, so narrative changes flow through; the
+     design docs (`ARCHITECTURE/ALGORITHMS/CLI/BUILD_PLAN`) are linked from
+     `docs/design.md`.
+   - Verify it still builds: `uv run sphinx-build -b html docs docs/_build/html`.
+
+If a change touches a default or a `Config` field, the new value/name must be
+identical across the code, the README configuration table, and the `#:` comment.
+
 ## Repo layout (target)
 
 See `docs/ARCHITECTURE.md` for the full tree and the responsibility of each

@@ -2,6 +2,8 @@
   <img src="docs/assets/perfora-logo.svg" alt="perfora" width="420"/>
 </div>
 
+<!-- sphinx-docs-start -->
+
 # perfora
 
 **Turn a scan or video of a player-piano roll into structured, reversible data:
@@ -200,9 +202,11 @@ The options you are most likely to touch:
 
 The full list (binarization, hole, lane, note, video, scope, and review
 thresholds) is the `Config` dataclass in
-[`perfora/config.py`](perfora/config.py) — each field is documented there, and
-the same names are used in the JSON file and in the Python API
-(`perfora.config.Config(...)`).
+[`perfora/config.py`](https://github.com/RedRem95/Perfora/blob/main/perfora/config.py)
+— each field is documented there (and rendered in the
+[Configuration reference](https://perfora.readthedocs.io/en/latest/configuration.html)
+of the hosted docs), and the same names are used in the JSON file and in the
+Python API (`perfora.config.Config(...)`).
 
 ---
 
@@ -357,9 +361,10 @@ detection with optional Tesseract/TrOCR/EasyOCR recognition, the lossless
 - A lane→pitch mapping pass to fill in MIDI note numbers.
 - Hardening on real-world scans and an interactive correction GUI.
 
-The design behind all of this lives in [`docs/`](docs/): `ARCHITECTURE.md`,
-`ALGORITHMS.md`, `CLI.md`, and `BUILD_PLAN.md`.
+The design behind all of this lives in
+[`docs/`](https://github.com/RedRem95/Perfora/tree/main/docs):
+`ARCHITECTURE.md`, `ALGORITHMS.md`, `CLI.md`, and `BUILD_PLAN.md`.
 
 ## License
 
-See [`LICENSE`](LICENSE).
+See [`LICENSE`](https://github.com/RedRem95/Perfora/blob/main/LICENSE).

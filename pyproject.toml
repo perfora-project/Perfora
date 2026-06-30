@@ -26,6 +26,11 @@ midi = ["mido"]
 cli = ["rich", "questionary", "pillow"]
 all = ["perfora[tesseract,trocr,easyocr,doctr,midi,cli]"]
 dev = ["pytest", "ruff", "mypy", "hypothesis"]
+docs = [
+    "sphinx>=7",
+    "furo",
+    "myst-parser>=2",
+]
 
 [build-system]
 requires = ["hatchling"]
