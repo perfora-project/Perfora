@@ -29,6 +29,7 @@ back without losing anything.
 - [Installation](#installation)
 - [Tutorial: decode your first roll (command line)](#tutorial-decode-your-first-roll-command-line)
 - [Getting good results](#getting-good-results)
+- [Configuration (`--config`)](#configuration---config)
 - [Reading text (OCR)](#reading-text-ocr)
 - [Understanding the output file](#understanding-the-output-file)
 - [Using perfora as a Python library](#using-perfora-as-a-python-library)
@@ -156,15 +157,52 @@ in millimetres, and it needs to know the pixel-to-mm scale:
 
 **Other tips:**
 
-- Scan the roll on a contrasting background so the paper edges are clear; perfora
-  finds the roll, straightens it, and crops to it automatically (small skew is
-  fine).
-- Very large scans (hundreds of MB) are downscaled automatically before
-  processing; the millimetre calibration is adjusted so your numbers stay
-  correct. You can raise the cap with a config file (see
-  [Troubleshooting](#troubleshooting)).
+- **Scan on a plain, contrasting background** (a clean sheet works well). perfora
+  isolates the roll by keying on that background — so it copes with a roll of any
+  colour, a non-uniform material, and an irregular shape (e.g. a narrowing
+  leader at the top). It then straightens and crops to the roll automatically
+  (skew is corrected, even on very long rolls).
+- A **perforation is read as "a spot that looks like the background, inside the
+  roll"** — so it works whether the holes show a bright scanner bed or a dark
+  backing through them, and the background itself can never be mistaken for a
+  hole.
+- Very large scans are downscaled automatically before processing (longest side
+  capped at 32000 px); the millimetre calibration is adjusted so your numbers
+  stay correct.
 - Use `--review fail` in batch scripts to make perfora exit non-zero when it was
   unsure about anything, so you can catch rolls that need a human look.
+
+---
+
+## Configuration (`--config`)
+
+Every tunable threshold lives in a single `perfora.config.Config`. From the
+command line you override any of them with a small JSON file:
+
+```bash
+echo '{"bridge_gap_mm": 0.0, "binarization_mode": "bright_holes"}' > cfg.json
+uv run perfora -i roll.tif -o roll.perfora.json --dpi 600 --config cfg.json
+```
+
+You only list the fields you want to change; everything else keeps its default.
+The options you are most likely to touch:
+
+| Option | Default | What it does |
+|--------|---------|--------------|
+| `bridge_gap_mm` | `0.5` | Max gap **along the roll** (mm) between two perforations in a lane that is merged into one note. Lower it (or set `0.0`) if distinct notes get merged; raise it (e.g. `1.5`) for chain-perforated rolls whose notes are dotted columns of holes. |
+| `binarization_mode` | `"auto"` | `auto`, `bright_holes`, `dark_holes`, or `adaptive`. Force the hole polarity if `auto` guesses wrong. |
+| `min_note_len_mm` | `1.0` | Notes shorter than this are flagged for review. |
+| `note_conf_min` | `0.5` | Notes below this confidence are flagged for review. |
+| `lane_tol_frac` | `0.25` | How far (as a fraction of lane pitch) a hole may sit from a lane centre before it's flagged `ambiguous_lane`. |
+| `max_image_px` | `32000` | Longest side a scan is downscaled to before processing. Keep it under 32767 (an OpenCV limit); lower it if you hit memory pressure. |
+| `min_hole_area_mm2` / `max_hole_area_mm2` | `0.5` / `200` | Size gates that reject speckle and tears. |
+| `ocr_conf_min` | `0.5` | Recognised text below this confidence is flagged for review. |
+
+The full list (binarization, hole, lane, note, video, scope, and review
+thresholds) is the `Config` dataclass in
+[`perfora/config.py`](perfora/config.py) — each field is documented there, and
+the same names are used in the JSON file and in the Python API
+(`perfora.config.Config(...)`).
 
 ---
 
@@ -264,7 +302,8 @@ doc = s.ctx.to_document()
 ```
 
 Tunable thresholds live in a single `perfora.config.Config`; pass one to
-`process(..., config=...)` or via `--config file.json` on the command line.
+`process(..., config=...)` or via `--config file.json` on the command line (see
+[Configuration](#configuration---config)).
 
 ---
 
@@ -277,14 +316,22 @@ the holes did not threshold cleanly. Try a higher-quality scan, pass the correct
 are not white-on-black there, force the polarity with a config file:
 `{"binarization_mode": "bright_holes"}` (or `"dark_holes"`).
 
-**A huge scan used to crash; now it is downscaled.** Scans whose longest side
-exceeds 16000 px are shrunk before processing (millimetre numbers stay correct).
-To keep more detail on a very long roll, raise the cap:
+**Notes are merged that should be separate** (or, rarely, one note is split into
+fragments). perfora bridges only tiny gaps between perforations into a single
+note. If distinct notes are being fused, lower or disable the bridge:
 
 ```bash
-echo '{"max_image_px": 30000}' > cfg.json     # stay under 32767
-uv run perfora -i big_roll.jp2 -o out.perfora.json --dpi 600 --config cfg.json
+echo '{"bridge_gap_mm": 0.0}' > cfg.json    # never merge: one note per perforation
+uv run perfora -i roll.tif -o roll.perfora.json --dpi 600 --config cfg.json
 ```
+
+If instead a chain-perforated note comes out fragmented, raise it (e.g.
+`{"bridge_gap_mm": 1.5}`). See [Configuration](#configuration---config).
+
+**A very large scan is downscaled.** Scans whose longest side exceeds 32000 px
+are shrunk before processing (millimetre numbers stay correct), because OpenCV
+cannot warp an image with a dimension ≥ 32767. Lower `max_image_px` if you hit
+memory pressure; you rarely need to change it otherwise.
 
 **Printed text is not being read** even though detection works. Install the
 `tesseract` extra **and** the system Tesseract engine (see
