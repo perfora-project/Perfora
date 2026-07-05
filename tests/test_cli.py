@@ -200,6 +200,37 @@ def test_cli_exit_codes(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
+# 5b. Known lane count via --lanes
+# ---------------------------------------------------------------------------
+def test_cli_lanes_flag_forces_count(tmp_path: Path) -> None:
+    from perfora.cli import main
+
+    p = _make_roll_image(tmp_path, "roll.png", n_lanes=12)
+    out = tmp_path / "out.perfora.json"
+    code = main(
+        ["-i", str(p), "-o", str(out), "--lanes", "12"] + _dpi_args()
+    )
+    assert code == 0
+
+    import perfora
+
+    doc = perfora.read(str(out))
+    assert doc.lane_model.n_lanes == 12
+    assert doc.lane_model.method == "fixed-count"
+
+
+def test_cli_lanes_flag_rejects_nonpositive(tmp_path: Path) -> None:
+    from perfora.cli import main
+
+    p = _make_roll_image(tmp_path, "roll.png")
+    code = main(
+        ["-i", str(p), "-o", str(tmp_path / "o.json"), "--lanes", "0"]
+        + _dpi_args()
+    )
+    assert code == 2
+
+
+# ---------------------------------------------------------------------------
 # 6. Video input
 # ---------------------------------------------------------------------------
 def test_cli_video_input(tmp_path: Path) -> None:

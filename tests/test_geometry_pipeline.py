@@ -122,6 +122,58 @@ def test_override_pitch_changes_assignment() -> None:
     assert session.ctx.lane_model.n_lanes < base_n_lanes
 
 
+def test_snap_octave_recovers_fundamental() -> None:
+    from perfora.pipeline.stages.lanes import _snap_octave
+
+    # roll-width prior ~9.48 px/lane; measured pitch may double or halve
+    assert _snap_octave(9.5, 9.48) == 9.5  # already right → unchanged
+    assert _snap_octave(19.0, 9.48) == 9.5  # 2x error → corrected
+    assert _snap_octave(4.75, 9.48) == 9.5  # 1/2x error → corrected
+    # degenerate inputs pass through
+    assert _snap_octave(float("nan"), 9.48) != _snap_octave(9.5, 9.48)
+    assert _snap_octave(9.5, 0.0) == 9.5
+
+
+def test_known_lane_count_config_is_authoritative() -> None:
+    spec = RollSpec()
+    bgr, gt = render(spec)
+    cfg = Config(n_lanes=spec.n_lanes)
+    doc = perfora.process(ImageSource(bgr, dpi=spec.dpi, config=cfg), config=cfg)
+
+    lm = doc.lane_model
+    assert lm.n_lanes == spec.n_lanes
+    assert lm.method == "fixed-count"
+    assert lm.confidence == 1.0
+    # the pitch is still measured (octave-corrected), so notes decode correctly
+    assert abs(lm.pitch_mm - spec.pitch_mm) / spec.pitch_mm < 0.01
+    assert _match_notes(doc.notes, gt.notes) == len(gt.notes)
+
+
+def test_known_lane_count_forces_reported_count() -> None:
+    # a count larger than the auto-detected span is honoured exactly
+    spec = RollSpec()
+    bgr, _gt = render(spec)
+    forced = spec.n_lanes + 5
+    cfg = Config(n_lanes=forced)
+    doc = perfora.process(ImageSource(bgr, dpi=spec.dpi, config=cfg), config=cfg)
+    assert doc.lane_model.n_lanes == forced
+    # spacing untouched (width/N prior stays within the same octave)
+    assert abs(doc.lane_model.pitch_mm - spec.pitch_mm) / spec.pitch_mm < 0.05
+
+
+def test_session_n_lanes_override_beats_config() -> None:
+    spec = RollSpec()
+    bgr, _gt = render(spec)
+    cfg = Config(n_lanes=spec.n_lanes + 3)
+    session = Session(ImageSource(bgr, dpi=spec.dpi, config=cfg), config=cfg)
+    session.run_all()
+    assert session.ctx.lane_model.n_lanes == spec.n_lanes + 3
+
+    session.apply_override(n_lanes=spec.n_lanes + 7)
+    session.rerun_from("lanes")
+    assert session.ctx.lane_model.n_lanes == spec.n_lanes + 7
+
+
 def test_rerun_from_lanes_scope() -> None:
     spec = RollSpec()
     bgr, _gt = render(spec)

@@ -175,6 +175,9 @@ in millimetres, and it needs to know the pixel-to-mm scale:
 - Very large scans are downscaled automatically before processing (longest side
   capped at 32000 px); the millimetre calibration is adjusted so your numbers
   stay correct.
+- **If you know the lane count** (keyboard keys), pass `--lanes N` — perfora
+  treats it as ground truth, forcing the count and octave-correcting the pitch.
+  See [Known lane count](#known-lane-count).
 - Use `--review fail` in batch scripts to make perfora exit non-zero when it was
   unsure about anything, so you can catch rolls that need a human look.
 
@@ -199,6 +202,7 @@ The options you are most likely to touch:
 | `binarization_mode` | `"auto"` | `auto`, `bright_holes`, `dark_holes`, or `adaptive`. Force the hole polarity if `auto` guesses wrong. |
 | `min_note_len_mm` | `1.0` | Notes shorter than this are flagged for review. |
 | `note_conf_min` | `0.5` | Notes below this confidence are flagged for review. |
+| `n_lanes` | `0` | Known number of lanes (keyboard keys). `0` auto-detects. Set it to the real count (also `--lanes N`) to treat it as ground truth: the count is forced and the measured pitch is octave-corrected against the roll width, fixing doubled/halved-pitch detection errors. See [Known lane count](#known-lane-count). |
 | `lane_tol_frac` | `0.25` | How far (as a fraction of lane pitch) a hole may sit from a lane centre before it's flagged `ambiguous_lane`. |
 | `max_image_px` | `32000` | Longest side a scan is downscaled to before processing (see [Resolution](#resolution-and-hole-detection)). Keep it under 32767 (an OpenCV limit); lower it if you hit memory pressure. |
 | `opening_kernel_px` | `3` | Morphological-opening kernel that **detaches touching perforations**. Increase to `4`–`5` to split adjacent holes that merge into one blob; too large erodes small holes. |
@@ -239,6 +243,27 @@ they were joined in the binary mask. In order of effect:
 echo '{"hole_split_watershed": true, "hole_split_min_distance_px": 5}' > cfg.json
 uv run perfora -i scan.tif -o out.perfora.json --dpi 600 --config cfg.json
 ```
+
+### Known lane count
+
+By default perfora *measures* how many lanes a roll has from the holes — it never
+assumes a standard. But if you already know the count (e.g. an 88-key roll), tell
+perfora and it is **treated as ground truth**:
+
+```bash
+uv run perfora -i roll.tif -o roll.perfora.json --dpi 600 --lanes 88
+```
+
+(equivalently `{"n_lanes": 88}` in `--config`). When set, perfora:
+
+1. **forces the reported lane count** to exactly that number, and
+2. **octave-corrects the measured pitch** against the roll width — if the detector
+   latched onto twice or half the true spacing (a classic periodicity failure),
+   the known count snaps it back to the right value.
+
+The lane *spacing* is still measured from your scan; the count only fixes the grid
+and rescues octave errors. Leave it at the default `0` to auto-detect. `--lanes`
+takes precedence over an `n_lanes` in `--config`.
 
 The full list (binarization, hole, lane, note, video, scope, and review
 thresholds) is the `Config` dataclass in

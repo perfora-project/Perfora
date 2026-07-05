@@ -63,6 +63,12 @@ class Config:
     hole_split_min_distance_px: int = 4
 
     # -- Lane finding (§4) ------------------------------------------------ #
+    #: Known number of lanes (keyboard keys). ``0`` means auto-detect the count
+    #: from the holes. When set to a positive value it is treated as ground
+    #: truth: the lane count is forced to exactly this many and the measured
+    #: pitch is octave-corrected against the roll width to snap out any
+    #: doubled/halved-pitch detection error.
+    n_lanes: int = 0
     #: Gaussian smoothing (px) of the cross-axis hole-density profile.
     density_sigma_px: float = 1.5
     #: Smallest lane pitch (px) the autocorrelation search will consider.

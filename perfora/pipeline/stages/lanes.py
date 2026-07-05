@@ -129,6 +129,26 @@ def _refine_skew(
     return best_slope
 
 
+def _snap_octave(pitch: float, expected: float) -> float:
+    """Snap ``pitch`` to whichever of ``{½, 1, 2} × pitch`` is nearest ``expected``.
+
+    Used when the lane count is known: ``expected = roll_width_px / n_lanes`` is a
+    rough prior for the spacing, accurate to well within a factor of two even with
+    edge margins, so it disambiguates octave errors (where the detector latches
+    onto ``2 × pitch`` or ``½ × pitch``) without discarding the measured value.
+    """
+    if not (np.isfinite(pitch) and np.isfinite(expected)) or pitch <= 0.0:
+        return pitch
+    if expected <= 0.0:
+        return pitch
+    best = pitch
+    for factor in (0.5, 1.0, 2.0):
+        cand = pitch * factor
+        if abs(cand - expected) < abs(best - expected):
+            best = cand
+    return best
+
+
 def _windowed_pitch(
     holes: list[Hole],
     n_rows: int,
@@ -199,6 +219,15 @@ class LaneFinding:
         if not ctx.holes:
             raise LaneDetectionError("no holes available for lane finding")
 
+        # Known lane count: a Session override wins, else the Config field
+        # (0 = auto). When set it is authoritative — the count is forced and the
+        # measured pitch is octave-corrected against the roll width.
+        known_n: int | None = None
+        if ov.n_lanes is not None:
+            known_n = int(ov.n_lanes)
+        elif cfg.n_lanes > 0:
+            known_n = int(cfg.n_lanes)
+
         rows = np.array([h.centroid_px[0] for h in ctx.holes], dtype=np.float64)
         cols = np.array([h.centroid_px[1] for h in ctx.holes], dtype=np.float64)
         weights = np.array(
@@ -229,6 +258,10 @@ class LaneFinding:
                 raise LaneDetectionError(
                     "could not detect lane periodicity; supply lane_pitch_mm"
                 )
+            # Known count: snap the measured pitch to the octave implied by the
+            # roll width, correcting a doubled/halved-pitch detection error.
+            if known_n is not None and known_n > 1:
+                pitch_guess = _snap_octave(pitch_guess, n_cols / known_n)
 
         # --- residual-skew refine: the slope that makes lanes most vertical --
         # (handles drift that a coarse deskew leaves on very long rolls)
@@ -254,8 +287,11 @@ class LaneFinding:
         max_idx = int(idx.max())
         v0_px = v0_raw + min_idx * pitch_px
         n_lanes = max_idx - min_idx + 1
-        if ov.n_lanes is not None:
-            n_lanes = int(ov.n_lanes)
+        if known_n is not None:
+            n_lanes = known_n
+            confidence = 1.0
+            if method != "override":
+                method = "fixed-count"
 
         ctx.lane_model = LaneModel(
             pitch_mm=pitch_px * mm_v,

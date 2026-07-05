@@ -359,6 +359,14 @@ def _cmd_process(args: argparse.Namespace) -> int:
     roi = _parse_roi(roi_str)
     config = _load_config(config_file)
 
+    lanes: int | None = args.lanes
+    if lanes is not None:
+        if lanes < 1:
+            _die(2, f"--lanes must be a positive integer: {lanes}")
+        import dataclasses
+
+        config = dataclasses.replace(config, n_lanes=lanes)
+
     if not quiet and dpi is None and physical_width_mm is None:
         sys.stderr.write(
             "perfora: notice: no --dpi or --physical-width-mm given; "
@@ -508,6 +516,18 @@ def _build_parser() -> _Parser:
         default=None,
         metavar="N",
         help="Physical roll width in mm (alternative calibration to --dpi).",
+    )
+    pp.add_argument(
+        "--lanes",
+        dest="lanes",
+        type=int,
+        default=None,
+        metavar="N",
+        help=(
+            "Known number of lanes (keyboard keys). Treated as ground truth: "
+            "forces the lane count and octave-corrects the measured pitch. "
+            "Overrides any n_lanes in --config."
+        ),
     )
     pp.add_argument(
         "--source-type",
