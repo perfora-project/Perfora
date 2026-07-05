@@ -59,8 +59,12 @@ class LaneModel:
 
         ``residual_mm`` is signed: ``v_mm - v_center(lane)``. A residual near
         half the pitch means the position sits ambiguously between two lanes.
+        The lane is clamped to the valid grid ``[0, n_lanes - 1]`` so it always
+        indexes an existing lane; a position outside the grid then shows up as a
+        large residual (and is flagged during note assembly).
         """
         lane = round((v_mm - self.v0_mm) / self.pitch_mm)
+        lane = max(0, min(lane, self.n_lanes - 1))
         return lane, v_mm - self.v_center(lane)
 
 

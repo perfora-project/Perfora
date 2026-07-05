@@ -149,6 +149,46 @@ def _snap_octave(pitch: float, expected: float) -> float:
     return best
 
 
+def _fit_n_lane_comb(
+    d: NDArray[np.float64],
+    pitch_guess: float,
+    n_lanes: int,
+    rel: float = 0.12,
+    steps: int = 121,
+) -> tuple[float, float]:
+    """Fit exactly ``n_lanes`` equally-spaced teeth to the density profile.
+
+    Searches pitch in ``pitch_guess × (1 ± rel)`` and slides the comb's phase so
+    the ``n_lanes`` teeth capture the most density. Because the number of teeth is
+    fixed to the known count, the pitch is chosen to make the whole grid fit the
+    holes across the full width — removing the far-edge drift that a locally
+    measured pitch accumulates over many lanes. Unused edge lanes simply sit over
+    empty profile and cost nothing.
+
+    Returns ``(pitch_px, v0_px)`` for the leftmost tooth, or ``(nan, nan)`` when
+    the comb cannot fit inside the profile (e.g. ``n_lanes`` too large for the
+    width at this pitch) — the caller then falls back to a local comb fit.
+    """
+    n = len(d)
+    if n_lanes < 2 or not np.isfinite(pitch_guess) or pitch_guess < 1.0 or n == 0:
+        return (float("nan"), float("nan"))
+    teeth = np.arange(n_lanes)
+    best_pitch, best_v0, best_score = float("nan"), float("nan"), -np.inf
+    for pitch in np.linspace(
+        pitch_guess * (1.0 - rel), pitch_guess * (1.0 + rel), steps
+    ):
+        span = (n_lanes - 1) * pitch
+        hi = n - 1 - span
+        if hi < 0:  # comb wider than the profile: N teeth don't fit at this pitch
+            continue
+        for v0 in range(int(hi) + 1):
+            idx = np.round(v0 + teeth * pitch).astype(np.int_)
+            score = float(d[idx].sum())
+            if score > best_score:
+                best_pitch, best_v0, best_score = float(pitch), float(v0), score
+    return (best_pitch, best_v0)
+
+
 def _windowed_pitch(
     holes: list[Hole],
     n_rows: int,
@@ -271,11 +311,19 @@ class LaneFinding:
         ctx.debug["v_density"] = d
         ctx.debug["lane_skew_mm"] = slope * (mm_v / mm_u)
 
-        # --- pitch + offset on the deskewed columns -------------------------
+        # --- pitch on the deskewed columns ----------------------------------
+        # With a known count, fit exactly N teeth to the whole profile: the pitch
+        # is then chosen so N lanes span the roll end-to-end (no far-edge drift,
+        # and robust where dense lanes defeat peak-picking). The phase is still
+        # anchored to the holes below, so there is no whole-lane offset ambiguity.
         if ov.lane_pitch_mm is not None:
             pitch_px = pitch_guess
+        elif known_n is not None and known_n > 1:
+            fp, _fv = _fit_n_lane_comb(d, pitch_guess, known_n)
+            pitch_px = fp if np.isfinite(fp) else comb_fit(d, pitch_guess)[0]
         else:
             pitch_px, _v0u = comb_fit(d, pitch_guess)
+
         if ov.lane_v0_mm is not None:
             v0_raw = ov.lane_v0_mm / mm_v
         else:
@@ -286,12 +334,13 @@ class LaneFinding:
         min_idx = int(idx.min())
         max_idx = int(idx.max())
         v0_px = v0_raw + min_idx * pitch_px
-        n_lanes = max_idx - min_idx + 1
         if known_n is not None:
             n_lanes = known_n
             confidence = 1.0
             if method != "override":
                 method = "fixed-count"
+        else:
+            n_lanes = max_idx - min_idx + 1
 
         ctx.lane_model = LaneModel(
             pitch_mm=pitch_px * mm_v,

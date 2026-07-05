@@ -202,7 +202,7 @@ The options you are most likely to touch:
 | `binarization_mode` | `"auto"` | `auto`, `bright_holes`, `dark_holes`, or `adaptive`. Force the hole polarity if `auto` guesses wrong. |
 | `min_note_len_mm` | `1.0` | Notes shorter than this are flagged for review. |
 | `note_conf_min` | `0.5` | Notes below this confidence are flagged for review. |
-| `n_lanes` | `0` | Known number of lanes (keyboard keys). `0` auto-detects. Set it to the real count (also `--lanes N`) to treat it as ground truth: the count is forced and the measured pitch is octave-corrected against the roll width, fixing doubled/halved-pitch detection errors. See [Known lane count](#known-lane-count). |
+| `n_lanes` | `0` | Known number of lanes (keyboard keys). `0` auto-detects. Set it to the real count (also `--lanes N`) to treat it as ground truth: the count is forced and exactly that many equally-spaced lanes are fit across the roll (octave-correcting the pitch and removing far-edge drift). See [Known lane count](#known-lane-count). |
 | `lane_tol_frac` | `0.25` | How far (as a fraction of lane pitch) a hole may sit from a lane centre before it's flagged `ambiguous_lane`. |
 | `max_image_px` | `32000` | Longest side a scan is downscaled to before processing (see [Resolution](#resolution-and-hole-detection)). Keep it under 32767 (an OpenCV limit); lower it if you hit memory pressure. |
 | `opening_kernel_px` | `3` | Morphological-opening kernel that **detaches touching perforations**. Increase to `4`–`5` to split adjacent holes that merge into one blob; too large erodes small holes. |
@@ -256,14 +256,20 @@ uv run perfora -i roll.tif -o roll.perfora.json --dpi 600 --lanes 88
 
 (equivalently `{"n_lanes": 88}` in `--config`). When set, perfora:
 
-1. **forces the reported lane count** to exactly that number, and
+1. **forces the reported lane count** to exactly that number,
 2. **octave-corrects the measured pitch** against the roll width — if the detector
    latched onto twice or half the true spacing (a classic periodicity failure),
-   the known count snaps it back to the right value.
+   the known count snaps it back, and
+3. **fits exactly N equally-spaced lanes across the whole roll** instead of laying
+   down a locally-measured pitch. This pins the spacing so the grid lines up
+   end-to-end: on a wide, many-lane roll a tiny pitch error otherwise compounds
+   into a full lane of drift at the far edge, misassigning notes. The fit is also
+   more robust than peak-picking when lanes sit close together.
 
-The lane *spacing* is still measured from your scan; the count only fixes the grid
-and rescues octave errors. Leave it at the default `0` to auto-detect. `--lanes`
-takes precedence over an `n_lanes` in `--config`.
+The spacing is still *measured* from your scan (the fit only uses the count to
+choose the best-fitting pitch) and the lanes stay equally spaced; the phase is
+anchored to your holes, so there is no whole-lane offset. Leave it at the default
+`0` to auto-detect. `--lanes` takes precedence over an `n_lanes` in `--config`.
 
 The full list (binarization, hole, lane, note, video, scope, and review
 thresholds) is the `Config` dataclass in

@@ -150,15 +150,28 @@ def test_known_lane_count_config_is_authoritative() -> None:
 
 
 def test_known_lane_count_forces_reported_count() -> None:
-    # a count larger than the auto-detected span is honoured exactly
+    # forcing a larger count spreads exactly that many lanes across the span:
+    # the count is honoured and the pitch shrinks to fit them (global N-fit)
     spec = RollSpec()
     bgr, _gt = render(spec)
     forced = spec.n_lanes + 5
     cfg = Config(n_lanes=forced)
     doc = perfora.process(ImageSource(bgr, dpi=spec.dpi, config=cfg), config=cfg)
     assert doc.lane_model.n_lanes == forced
-    # spacing untouched (width/N prior stays within the same octave)
-    assert abs(doc.lane_model.pitch_mm - spec.pitch_mm) / spec.pitch_mm < 0.05
+    assert doc.lane_model.pitch_mm < spec.pitch_mm  # spread → smaller pitch
+
+
+def test_known_lane_count_grid_fits_many_lanes() -> None:
+    # the value of the global N-fit: on a wide, many-lane roll the correct count
+    # pins the pitch so all lanes fit end-to-end (no far-edge drift), so every
+    # note is assigned to the right lane and the pitch is recovered tightly
+    spec = RollSpec(n_lanes=40, pitch_mm=2.5)
+    bgr, gt = render(spec)
+    cfg = Config(n_lanes=spec.n_lanes)
+    doc = perfora.process(ImageSource(bgr, dpi=spec.dpi, config=cfg), config=cfg)
+    assert doc.lane_model.n_lanes == spec.n_lanes
+    assert abs(doc.lane_model.pitch_mm - spec.pitch_mm) / spec.pitch_mm < 0.01
+    assert _match_notes(doc.notes, gt.notes) == len(gt.notes)
 
 
 def test_session_n_lanes_override_beats_config() -> None:
