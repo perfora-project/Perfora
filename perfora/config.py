@@ -54,6 +54,13 @@ class Config:
     max_hole_area_mm2: float = 200.0
     #: Minimum region solidity; rejects torn edges and text strokes.
     min_solidity: float = 0.7
+    #: Split touching perforations with a distance-transform watershed. Off by
+    #: default; best for round holes that merge side-by-side, and can over-split
+    #: long slot-shaped perforations, so leave off for slot rolls.
+    hole_split_watershed: bool = False
+    #: Minimum separation (px) between hole centres for the watershed peak
+    #: detection — roughly the smallest hole spacing you want resolved.
+    hole_split_min_distance_px: int = 4
 
     # -- Lane finding (§4) ------------------------------------------------ #
     #: Gaussian smoothing (px) of the cross-axis hole-density profile.

@@ -251,3 +251,33 @@ def test_hole_extraction_preview_boxes_match_holes() -> None:
         assert y == u_min, f"box[{i}] y={y} != u_min={u_min}"
         assert w == v_max - v_min, f"box[{i}] w={w} != {v_max - v_min}"
         assert h == u_max - u_min, f"box[{i}] h={h} != {u_max - u_min}"
+
+
+# ---------------------------------------------------------------------------
+# Watershed hole splitting (opt-in)
+# ---------------------------------------------------------------------------
+def test_watershed_splits_touching_holes() -> None:
+    import cv2
+    from perfora.pipeline.stages.holes import extract_holes
+
+    # two round perforations overlapping into a single "peanut" blob
+    canvas = np.zeros((60, 60), dtype=np.uint8)
+    cv2.circle(canvas, (24, 30), 9, 1, -1)
+    cv2.circle(canvas, (38, 30), 9, 1, -1)
+    mask = canvas.astype(bool)
+
+    # off by default: the touching pair is one connected component
+    assert len(extract_holes(mask, _CAL_01, Config())) == 1
+
+    # enabled: the watershed cuts them at the neck into two holes
+    on = Config(hole_split_watershed=True, hole_split_min_distance_px=6)
+    assert len(extract_holes(mask, _CAL_01, on)) == 2
+
+
+def test_watershed_off_by_default_keeps_slot_whole() -> None:
+    from perfora.pipeline.stages.holes import extract_holes
+
+    # a single elongated slot must stay one hole with the default (watershed off)
+    slot = np.zeros((80, 20), dtype=bool)
+    slot[10:70, 8:12] = True
+    assert len(extract_holes(slot, _CAL_01, Config())) == 1

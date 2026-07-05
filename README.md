@@ -205,6 +205,8 @@ The options you are most likely to touch:
 | `speckle_min_area_px` | `9` | Connected components smaller than this (px) are dropped as speckle. Lower it if genuinely small holes are being removed. |
 | `min_hole_area_mm2` / `max_hole_area_mm2` | `0.5` / `200` | Size gates (mm²) that reject speckle and tears. |
 | `min_solidity` | `0.7` | Minimum blob solidity. Two holes merged by a thin bridge form a low-solidity "dumbbell"; raise this to reject such merges. |
+| `hole_split_watershed` | `false` | Split **touching** perforations with a distance-transform watershed. Best for round holes that merge side-by-side; leave off for slot-shaped perforations (it can over-split them). |
+| `hole_split_min_distance_px` | `4` | Minimum separation (px) between hole centres for the watershed — roughly the smallest hole spacing to resolve. |
 | `ocr_conf_min` | `0.5` | Recognised text below this confidence is flagged for review. |
 
 ### Resolution and hole detection
@@ -224,8 +226,19 @@ they were joined in the binary mask. In order of effect:
    thin connections between touching blobs. Don't overdo it or small holes
    vanish.
 3. **Raise `min_solidity`** — rejects merged "dumbbell" blobs outright.
-4. Merging *along the roll* (a column of holes fused into one note) is a
+4. **Enable watershed splitting** — for perforations that genuinely *touch*
+   (no gap at all), set `hole_split_watershed: true`. It cuts touching blobs
+   apart at their necks using a distance-transform watershed, seeded by hole
+   centres kept `hole_split_min_distance_px` apart. It's best for round holes;
+   it can over-split long slot-shaped perforations, so leave it off for slot
+   rolls.
+5. Merging *along the roll* (a column of holes fused into one note) is a
    different knob — that's `bridge_gap_mm` (set it lower, or `0.0`).
+
+```bash
+echo '{"hole_split_watershed": true, "hole_split_min_distance_px": 5}' > cfg.json
+uv run perfora -i scan.tif -o out.perfora.json --dpi 600 --config cfg.json
+```
 
 The full list (binarization, hole, lane, note, video, scope, and review
 thresholds) is the `Config` dataclass in

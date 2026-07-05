@@ -10,6 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, ClassVar
 
+import numpy as np
 from numpy.typing import NDArray
 
 from perfora.config import Config
@@ -61,21 +62,26 @@ def extract_holes(
     calibration : Calibration
         Pixel-to-millimetre conversion factors for the ``u`` and ``v`` axes.
     config : Config
-        Filtering thresholds: :attr:`~perfora.config.Config.min_hole_area_mm2`,
-        :attr:`~perfora.config.Config.max_hole_area_mm2`, and
-        :attr:`~perfora.config.Config.min_solidity`.
+        Filtering thresholds (``min_hole_area_mm2``, ``max_hole_area_mm2``,
+        ``min_solidity``) and, when ``hole_split_watershed`` is set, the
+        watershed separation distance ``hole_split_min_distance_px``.
 
     Returns
     -------
     list[Hole]
-        One :class:`Hole` per accepted connected component, in label order.
-        Components are rejected when their area in mm² falls outside
-        ``[min_hole_area_mm2, max_hole_area_mm2]`` or their solidity is below
-        ``min_solidity``.
+        One :class:`Hole` per accepted region. Regions are rejected when their
+        area in mm² falls outside ``[min_hole_area_mm2, max_hole_area_mm2]`` or
+        their solidity is below ``min_solidity``. When ``hole_split_watershed``
+        is enabled, perforations that touch are separated first.
     """
     from skimage import measure
 
-    labels = measure.label(mask)  # type: ignore[no-untyped-call]
+    if config.hole_split_watershed:
+        labels = _watershed_labels(
+            np.asarray(mask, dtype=bool), config.hole_split_min_distance_px
+        )
+    else:
+        labels = measure.label(mask)  # type: ignore[no-untyped-call]
     holes: list[Hole] = []
     for r in measure.regionprops(labels):  # type: ignore[no-untyped-call]
         area_mm2: float = (
@@ -102,6 +108,36 @@ def extract_holes(
             )
         )
     return holes
+
+
+def _watershed_labels(
+    mask: NDArray[np.bool_], min_distance: int
+) -> NDArray[np.int_]:
+    """Split touching perforations with a distance-transform watershed.
+
+    Peaks of the Euclidean distance transform (kept at least ``min_distance`` px
+    apart) seed a watershed on ``-distance``, so blobs that merged in the binary
+    mask are cut at their necks. Falls back to plain connected-component
+    labelling when the mask is empty or no peaks are found.
+    """
+    from scipy import ndimage as ndi
+    from skimage.feature import peak_local_max
+    from skimage.measure import label
+    from skimage.segmentation import watershed
+
+    if not mask.any():
+        return np.zeros(mask.shape, dtype=np.int_)
+    distance = ndi.distance_transform_edt(mask)
+    coords = peak_local_max(  # type: ignore[no-untyped-call]
+        distance, min_distance=max(1, int(min_distance)), labels=mask
+    )
+    if len(coords) == 0:
+        return np.asarray(label(mask), dtype=np.int_)  # type: ignore[no-untyped-call]
+    peak_mask = np.zeros(distance.shape, dtype=bool)
+    peak_mask[tuple(coords.T)] = True
+    markers = label(peak_mask)  # type: ignore[no-untyped-call]
+    result = watershed(-distance, markers, mask=mask)  # type: ignore[no-untyped-call]
+    return np.asarray(result, dtype=np.int_)
 
 
 class HoleExtraction:
