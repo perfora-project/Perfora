@@ -274,13 +274,29 @@ class LaneFinding:
         centers_px = [
             (lm.v0_mm + i * lm.pitch_mm) / mm_v for i in range(lm.n_lanes)
         ]
+        # BGR colours, matched by the legend below.
+        lane_color = (0, 165, 255)  # orange — measured lane centre lines
+        profile_color = (255, 255, 0)  # cyan — cross-axis hole-density profile
         profile = ctx.debug.get("v_density")
-        overlays: list[Overlay] = [Overlay(kind="lanes", data=centers_px)]
+        overlays: list[Overlay] = [
+            Overlay(kind="lanes", data=centers_px, style={"color": lane_color})
+        ]
+        legend: list[tuple[str, tuple[int, int, int]]] = [
+            ("lane centres", lane_color)
+        ]
         if isinstance(profile, np.ndarray):
-            overlays.append(Overlay(kind="profile", data=profile.tolist()))
+            overlays.append(
+                Overlay(
+                    kind="profile",
+                    data=profile.tolist(),
+                    style={"color": profile_color},
+                )
+            )
+            legend.append(("hole-density profile", profile_color))
         return StagePreview(
             base="gray",
             overlays=tuple(overlays),
+            legend=tuple(legend),
             summary={
                 "pitch_mm": round(lm.pitch_mm, 4),
                 "n_lanes": lm.n_lanes,

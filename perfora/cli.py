@@ -55,11 +55,44 @@ def _canon(fmt: str) -> str:
 
 
 def _infer_source_type(path: str) -> str:
-    """Return ``'image'`` or ``'video'`` based on the file extension."""
+    """Return ``'image'`` or ``'video'`` for a path.
+
+    Prefers content sniffing via ``python-magic`` (libmagic); if python-magic or
+    the system libmagic is unavailable, or the MIME type is inconclusive, falls
+    back — without error — to matching the file extension.
+    """
+    kind = _sniff_source_type(path)
+    if kind is not None:
+        return kind
+    return _source_type_by_extension(path)
+
+
+def _source_type_by_extension(path: str) -> str:
+    """Extension-based fallback: video extensions -> ``'video'``, else image."""
     ext = Path(path).suffix.lower()
-    if ext in _VIDEO_EXTS:
-        return "video"
-    return "image"
+    return "video" if ext in _VIDEO_EXTS else "image"
+
+
+def _sniff_source_type(path: str) -> str | None:
+    """Content-sniff ``'image'``/``'video'`` via libmagic, or ``None``.
+
+    Returns ``None`` (never raises) when python-magic or libmagic is missing, the
+    file can't be read, or the MIME type is neither image nor video.
+    """
+    try:
+        import magic
+    except ImportError:
+        return None
+    try:
+        mime = magic.from_file(str(path), mime=True)
+    except Exception:  # noqa: BLE001 - libmagic missing / unreadable file, etc.
+        return None
+    if isinstance(mime, str):
+        if mime.startswith("video/"):
+            return "video"
+        if mime.startswith("image/"):
+            return "image"
+    return None
 
 
 def _writer_extension(format_id: str) -> str:

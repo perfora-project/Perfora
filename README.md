@@ -106,7 +106,11 @@ uv run perfora -o ./decoded/ --dpi 600 -i scans/*.tif
 ```
 
 Images and videos can be mixed in the same command — perfora picks the right
-reader from the file extension.
+reader by **sniffing the file content** (via `libmagic`/`python-magic`), so an
+image with an unusual or wrong extension is still handled correctly. If
+python-magic or the system `libmagic` isn't available it falls back, without
+error, to matching the file extension. Use `--source-type {image,video}` to
+force it.
 
 ### 3. See what each step did (previews)
 
@@ -196,9 +200,32 @@ The options you are most likely to touch:
 | `min_note_len_mm` | `1.0` | Notes shorter than this are flagged for review. |
 | `note_conf_min` | `0.5` | Notes below this confidence are flagged for review. |
 | `lane_tol_frac` | `0.25` | How far (as a fraction of lane pitch) a hole may sit from a lane centre before it's flagged `ambiguous_lane`. |
-| `max_image_px` | `32000` | Longest side a scan is downscaled to before processing. Keep it under 32767 (an OpenCV limit); lower it if you hit memory pressure. |
-| `min_hole_area_mm2` / `max_hole_area_mm2` | `0.5` / `200` | Size gates that reject speckle and tears. |
+| `max_image_px` | `32000` | Longest side a scan is downscaled to before processing (see [Resolution](#resolution-and-hole-detection)). Keep it under 32767 (an OpenCV limit); lower it if you hit memory pressure. |
+| `opening_kernel_px` | `3` | Morphological-opening kernel that **detaches touching perforations**. Increase to `4`–`5` to split adjacent holes that merge into one blob; too large erodes small holes. |
+| `speckle_min_area_px` | `9` | Connected components smaller than this (px) are dropped as speckle. Lower it if genuinely small holes are being removed. |
+| `min_hole_area_mm2` / `max_hole_area_mm2` | `0.5` / `200` | Size gates (mm²) that reject speckle and tears. |
+| `min_solidity` | `0.7` | Minimum blob solidity. Two holes merged by a thin bridge form a low-solidity "dumbbell"; raise this to reject such merges. |
 | `ocr_conf_min` | `0.5` | Recognised text below this confidence is flagged for review. |
+
+### Resolution and hole detection
+
+perfora works at the scan's native resolution, downscaling only if the longest
+side exceeds `max_image_px` (32000 px). So to **increase processing resolution**:
+scan at a higher DPI (holes need to be several pixels wide to resolve — aim for a
+lane pitch of ≥ 6–8 px), and make sure `max_image_px` is at least the scan's
+longest side (but keep it under 32767).
+
+If **small perforations that sit close together get merged into one big hole**,
+they were joined in the binary mask. In order of effect:
+
+1. **Scan/keep more resolution** — merging is most common when holes are only a
+   few pixels apart. Higher DPI and a larger `max_image_px` separate them.
+2. **Raise `opening_kernel_px`** (e.g. `4`) — the morphological opening breaks
+   thin connections between touching blobs. Don't overdo it or small holes
+   vanish.
+3. **Raise `min_solidity`** — rejects merged "dumbbell" blobs outright.
+4. Merging *along the roll* (a column of holes fused into one note) is a
+   different knob — that's `bridge_gap_mm` (set it lower, or `0.0`).
 
 The full list (binarization, hole, lane, note, video, scope, and review
 thresholds) is the `Config` dataclass in

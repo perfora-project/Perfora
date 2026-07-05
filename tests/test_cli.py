@@ -8,6 +8,11 @@ from pathlib import Path
 import cv2
 import numpy as np
 import pytest
+from perfora.cli import (
+    _infer_source_type,
+    _sniff_source_type,
+    _source_type_by_extension,
+)
 
 from tests.fixtures.synth import RollSpec, render, synth_video
 
@@ -268,3 +273,38 @@ def test_cli_preview_dir(tmp_path: Path) -> None:
     suffixes = sorted(n.split("__", 1)[1] for n in names)
     assert suffixes[0].startswith("00_")
     assert any(s.startswith("01_") for s in suffixes)
+
+
+# ---------------------------------------------------------------------------
+# 8. Source-type detection: python-magic content sniffing + graceful fallback
+# ---------------------------------------------------------------------------
+def test_source_type_content_sniff(tmp_path: Path) -> None:
+    # a real PNG saved with a non-image extension is still detected as an image
+    # (content sniffing beats the extension when python-magic + libmagic exist)
+    png = _make_roll_image(tmp_path, "roll.png")
+    misnamed = tmp_path / "roll.dat"
+    png.rename(misnamed)
+    assert _infer_source_type(str(misnamed)) == "image"
+
+
+def test_source_type_extension_fallback() -> None:
+    assert _source_type_by_extension("clip.mp4") == "video"
+    assert _source_type_by_extension("scan.png") == "image"
+    assert _source_type_by_extension("mystery.xyz") == "image"
+
+
+def test_source_type_falls_back_without_magic(monkeypatch: pytest.MonkeyPatch) -> None:
+    import builtins
+
+    real_import = builtins.__import__
+
+    def fake_import(name: str, *args: object, **kwargs: object) -> object:
+        if name == "magic":
+            raise ImportError("simulated: python-magic not installed")
+        return real_import(name, *args, **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(builtins, "__import__", fake_import)
+    # sniffing yields nothing, but inference still works via the extension
+    assert _sniff_source_type("whatever.png") is None
+    assert _infer_source_type("clip.mp4") == "video"
+    assert _infer_source_type("scan.png") == "image"

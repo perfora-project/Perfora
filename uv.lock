@@ -1441,6 +1441,7 @@ dependencies = [
     { name = "numpy", version = "2.5.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "opencv-python-headless" },
     { name = "pandas" },
+    { name = "python-magic" },
     { name = "scikit-image" },
     { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
     { name = "scipy", version = "1.18.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
@@ -1510,6 +1511,7 @@ requires-dist = [
     { name = "pytesseract", marker = "extra == 'tesseract'" },
     { name = "pytest", marker = "extra == 'dev'" },
     { name = "python-doctr", marker = "extra == 'doctr'" },
+    { name = "python-magic" },
     { name = "questionary", marker = "extra == 'cli'" },
     { name = "rich", marker = "extra == 'cli'" },
     { name = "ruff", marker = "extra == 'dev'" },
@@ -1893,6 +1895,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/1f/aa/35afe5b4f2e601557f9a617411896df0a5e092caac44a7ab78caec1e7fcd/python_doctr-1.0.1.tar.gz", hash = "sha256:6fc54316ea7915e1fa96bf58e9434b16e1511c3c61dff16d0802f18c71a5d9c6", size = 223224, upload-time = "2026-02-04T15:05:51.862Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/03/1d/83cfd3f35e6f83553b3effc951a45813a794da2f6ffc5c0e8f3557f4cead/python_doctr-1.0.1-py3-none-any.whl", hash = "sha256:a54028bc59df98816059fb038265c787ca971098ee78a2af2514267e6c71ce7e", size = 288861, upload-time = "2026-02-04T15:05:48.783Z" },
+]
+
+[[package]]
+name = "python-magic"
+version = "0.4.27"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/da/db/0b3e28ac047452d079d375ec6798bf76a036a08182dbb39ed38116a49130/python-magic-0.4.27.tar.gz", hash = "sha256:c1ba14b08e4a5f5c31a302b7721239695b2f0f058d125bd5ce1ee36b9d9d3c3b", size = 14677, upload-time = "2022-06-07T20:16:59.508Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/6c/73/9f872cb81fc5c3bb48f7227872c28975f998f3e7c2b1c16e95e6432bbb90/python_magic-0.4.27-py2.py3-none-any.whl", hash = "sha256:c212960ad306f700aa0d01e5d7a325d20548ff97eb9920dcd29513174f0294d3", size = 13840, upload-time = "2022-06-07T20:16:57.763Z" },
 ]
 
 [[package]]

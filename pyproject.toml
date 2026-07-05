@@ -12,6 +12,9 @@ dependencies = [
     "pandas",
     "scikit-image",
     "opencv-python-headless",
+    # Content-based (MIME) source-type detection; the code falls back to
+    # extension matching if python-magic or the system libmagic is unavailable.
+    "python-magic",
 ]
 
 [project.scripts]
@@ -67,6 +70,7 @@ module = [
     "skimage.*",
     "pandas",
     "pandas.*",
+    "magic",
 ]
 ignore_missing_imports = true
 

@@ -58,6 +58,9 @@ for correcting individual low-confidence results.
 - **Python 3.11+**, full type hints, `from __future__ import annotations`.
 - Core scientific stack: `numpy`, `scipy`, `pandas`, `scikit-image`,
   `opencv-python` (headless in CI).
+- `python-magic` (libmagic) for content-based source-type detection, with a
+  graceful, error-free fallback to extension matching when it or the system
+  `libmagic` is missing (so it never becomes a hard requirement).
 - OCR backends are **optional extras**, never imported by the core:
   - `pytesseract` (printed text) — extra `[tesseract]`
   - `transformers` + `torch` for TrOCR handwriting — extra `[trocr]`
@@ -71,8 +74,9 @@ for correcting individual low-confidence results.
 
 The **core install must stay light**: importing `perfora`, running the image →
 holes → lanes → notes path, and reading/writing the native JSON format must work
-with only numpy/scipy/pandas/scikit-image/opencv installed. Heavy ML deps load
-lazily and only when a backend that needs them is selected.
+with only numpy/scipy/pandas/scikit-image/opencv (+ the small `python-magic`)
+installed. Heavy ML deps load lazily and only when a backend that needs them is
+selected.
 
 ## Conventions
 

@@ -56,11 +56,15 @@ class StagePreview:
         Overlays to draw, in order.
     summary : dict
         Short facts for a status line (e.g. ``{"pitch_mm": 3.18}``).
+    legend : tuple[tuple[str, tuple[int, int, int]], ...]
+        Optional ``(label, BGR-colour)`` entries drawn as a legend key on the
+        rasterized image, so overlay colours are self-explanatory.
     """
 
     base: str
     overlays: tuple[Overlay, ...] = ()
     summary: dict[str, str | float | int] = field(default_factory=dict)
+    legend: tuple[tuple[str, tuple[int, int, int]], ...] = ()
 
     def rasterize(self, image: RollImage) -> NDArray[Any]:
         """Bake the overlays onto a BGR image and return it.
@@ -82,6 +86,8 @@ class StagePreview:
         canvas = self._base_canvas(image)
         for ov in self.overlays:
             _draw_overlay(cv2, canvas, ov)
+        if self.legend:
+            _draw_legend(cv2, canvas, self.legend)
         return canvas
 
     def _base_canvas(self, image: RollImage) -> NDArray[Any]:
@@ -119,6 +125,46 @@ def _color(
 ) -> tuple[int, int, int]:
     c = style.get("color", default)
     return (int(c[0]), int(c[1]), int(c[2]))
+
+
+def _draw_legend(
+    cv2: Any,
+    canvas: NDArray[Any],
+    entries: tuple[tuple[str, tuple[int, int, int]], ...],
+) -> None:
+    """Draw a colour key in the top-left corner over a translucent panel."""
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    scale = 0.5
+    thick = 1
+    pad, swatch, gap, row_h = 8, 22, 8, 20
+    text_w = max(
+        (cv2.getTextSize(label, font, scale, thick)[0][0] for label, _ in entries),
+        default=0,
+    )
+    box_w = pad + swatch + gap + text_w + pad
+    box_h = pad + row_h * len(entries) + pad
+    box_w = min(box_w, canvas.shape[1])
+    box_h = min(box_h, canvas.shape[0])
+
+    panel = canvas[:box_h, :box_w].astype(np.float64)
+    panel *= 0.35  # darken behind the legend for contrast
+    canvas[:box_h, :box_w] = panel.astype(np.uint8)
+
+    y = pad + row_h // 2
+    for label, color in entries:
+        bgr = (int(color[0]), int(color[1]), int(color[2]))
+        cv2.line(canvas, (pad, y), (pad + swatch, y), bgr, 3, cv2.LINE_AA)
+        cv2.putText(
+            canvas,
+            label,
+            (pad + swatch + gap, y + 5),
+            font,
+            scale,
+            (255, 255, 255),
+            thick,
+            cv2.LINE_AA,
+        )
+        y += row_h
 
 
 def _draw_overlay(cv2: Any, canvas: NDArray[Any], ov: Overlay) -> None:
