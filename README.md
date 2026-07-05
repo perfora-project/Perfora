@@ -136,6 +136,33 @@ my_roll__05_text.png         text regions, labelled by scope
 Open `__03_lanes.png` first: if the vertical lines sit on the columns of holes,
 the lane model is good and the notes will be good.
 
+### 3b. Watch it work (verbose output)
+
+Add `-v` to have perfora narrate each stage on stderr — what it's doing and what
+it found — and `-vv` to also show per-unit progress bars for the long stages
+(video reconstruction, OCR):
+
+```bash
+uv run perfora -i my_roll.tif -o out.perfora.json --dpi 600 -v
+```
+
+```
+[perfora] preprocess: binarizing image and isolating perforations
+[perfora] preprocess: done — hole_fraction=0.084, mode=auto
+[perfora] holes: detecting perforations
+[perfora] holes: done — n_holes=615
+[perfora] lanes: measuring the lane grid
+[perfora] lanes: done — pitch_mm=3.0, n_lanes=88, confidence=1.0, method=fixed-count
+[perfora] notes: assembling notes from holes
+[perfora] notes: done — n_notes=615, lanes_used=71, lanes_unused=17
+[perfora] text: detecting and recognizing text
+[perfora] text: done — n_texts=2, n_review=0, detector=ContourDetector, recognizers=none
+```
+
+`--quiet` suppresses all of it (and the calibration notice). This is the quickest
+way to sanity-check a run: the `lanes` and `notes` lines tell you the pitch, how
+many lanes were found, and how many actually carry notes.
+
 ### 4. List and convert formats
 
 ```bash
@@ -260,16 +287,15 @@ uv run perfora -i roll.tif -o roll.perfora.json --dpi 600 --lanes 88
 2. **octave-corrects the measured pitch** against the roll width — if the detector
    latched onto twice or half the true spacing (a classic periodicity failure),
    the known count snaps it back, and
-3. **fits exactly N equally-spaced lanes across the whole roll** instead of laying
-   down a locally-measured pitch. This pins the spacing so the grid lines up
-   end-to-end: on a wide, many-lane roll a tiny pitch error otherwise compounds
-   into a full lane of drift at the far edge, misassigning notes. The fit is also
-   more robust than peak-picking when lanes sit close together.
+3. **anchors exactly N equally-spaced lanes between the outermost used lanes** —
+   lane 0 through the leftmost hole, lane N-1 through the rightmost — instead of
+   laying down a locally-measured pitch. Anchoring *both* ends guarantees the grid
+   reaches every hole: otherwise, on a wide many-lane roll a tiny pitch error
+   compounds into a full lane of drift and the far-side holes get no lane at all.
 
-The spacing is still *measured* from your scan (the fit only uses the count to
-choose the best-fitting pitch) and the lanes stay equally spaced; the phase is
-anchored to your holes, so there is no whole-lane offset. Leave it at the default
-`0` to auto-detect. `--lanes` takes precedence over an `n_lanes` in `--config`.
+The spacing is still derived from *your* holes (the outermost used lanes set it)
+and the lanes stay equally spaced. Leave it at the default `0` to auto-detect.
+`--lanes` takes precedence over an `n_lanes` in `--config`.
 
 The full list (binarization, hole, lane, note, video, scope, and review
 thresholds) is the `Config` dataclass in

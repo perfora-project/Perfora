@@ -202,7 +202,7 @@ class Preprocess:
         return StagePreview(
             base="mask",
             overlays=(),
-            summary={"hole_fraction": hole_frac, "mode": mode},
+            summary={"hole_fraction": round(hole_frac, 4), "mode": mode},
         )
 
     def interaction_points(self, ctx: PipelineContext) -> list[InteractionField]:

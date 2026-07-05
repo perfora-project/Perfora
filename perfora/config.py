@@ -65,10 +65,11 @@ class Config:
     # -- Lane finding (§4) ------------------------------------------------ #
     #: Known number of lanes (keyboard keys). ``0`` means auto-detect the count
     #: from the holes. When set to a positive value it is treated as ground
-    #: truth: the count is forced to exactly this many and exactly that many
-    #: equally-spaced lanes are fit across the whole roll — octave-correcting the
-    #: measured pitch against the roll width and pinning the spacing so the grid
-    #: spans end-to-end without far-edge drift.
+    #: truth: the count is forced to exactly this many and that many equally-
+    #: spaced lanes are anchored between the outermost used lanes (lane 0 through
+    #: the leftmost hole, lane N-1 through the rightmost), so the grid spans every
+    #: hole end-to-end instead of a locally-measured pitch drifting off the far
+    #: edge.
     n_lanes: int = 0
     #: Gaussian smoothing (px) of the cross-axis hole-density profile.
     density_sigma_px: float = 1.5

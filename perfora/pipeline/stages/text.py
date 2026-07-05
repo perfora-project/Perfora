@@ -69,13 +69,22 @@ class TextStage:
                 tag += " [review]"
             labels.append((x, max(0.0, y - 2.0), tag))
         n_review = sum(1 for t in ctx.texts if t.needs_review)
+        engine = self._get_engine()
+        recognizers = (
+            ", ".join(type(r).__name__ for r in engine.recognizers) or "none"
+        )
         return StagePreview(
             base="color",
             overlays=(
                 Overlay(kind="boxes", data=boxes, style={"color": (0, 0, 255)}),
                 Overlay(kind="labels", data=labels),
             ),
-            summary={"n_texts": len(ctx.texts), "n_review": n_review},
+            summary={
+                "n_texts": len(ctx.texts),
+                "n_review": n_review,
+                "detector": type(engine.detector).__name__,
+                "recognizers": recognizers,
+            },
         )
 
     def interaction_points(self, ctx: PipelineContext) -> list[InteractionField]:

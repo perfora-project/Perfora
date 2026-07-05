@@ -51,13 +51,25 @@ class NullProgressReporter:
         return False
 
 
+# Human-readable action for each built-in stage, shown on its start line. Falls
+# back to the raw stage name for any stage not listed (the pipeline is pluggable).
+_STAGE_ACTIONS: dict[str, str] = {
+    "preprocess": "binarizing image and isolating perforations",
+    "holes": "detecting perforations",
+    "lanes": "measuring the lane grid",
+    "notes": "assembling notes from holes",
+    "text": "detecting and recognizing text",
+}
+
+
 class TerminalProgressReporter:
     """Print stage progress to stderr.
 
     Parameters
     ----------
     verbosity : int
-        1 → stage start/end lines only; 2 → also per-unit progress updates.
+        1 → stage start/end lines (with each stage's summary of what it found);
+        2 → also per-unit progress updates for long stages.
     """
 
     def __init__(self, verbosity: int = 1) -> None:
@@ -65,8 +77,9 @@ class TerminalProgressReporter:
         self._in_progress = False  # track whether an in-line progress line is open
 
     def on_stage_start(self, stage: str, total: int | None = None) -> None:
-        """Write a stage-start line to stderr."""
-        parts = f"[perfora] {stage}: starting"
+        """Write a stage-start line naming what the stage is about to do."""
+        action = _STAGE_ACTIONS.get(stage, "starting")
+        parts = f"[perfora] {stage}: {action}"
         if total is not None:
             parts += f" ({total} units)"
         sys.stderr.write(parts + "\n")
@@ -83,13 +96,18 @@ class TerminalProgressReporter:
         self._in_progress = True
 
     def on_stage_end(self, stage: str, result: StageResult) -> None:
-        """Write a stage-end line to stderr."""
+        """Write a stage-end line, including what the stage found (its summary)."""
         if self._in_progress:
             sys.stderr.write("\n")
             self._in_progress = False
+        line = f"[perfora] {stage}: done"
+        facts = result.preview.summary if result.preview is not None else {}
+        if facts:
+            line += " — " + ", ".join(f"{k}={v}" for k, v in facts.items())
         n = len(result.new_reviews)
-        suffix = f" ({n} review item(s))" if n else ""
-        sys.stderr.write(f"[perfora] {stage}: done{suffix}\n")
+        if n:
+            line += f" ({n} review item(s))"
+        sys.stderr.write(line + "\n")
         sys.stderr.flush()
 
     def cancelled(self) -> bool:

@@ -154,10 +154,16 @@ class NoteAssembly:
                     vc + half,
                 )
             )
+        used = {n.lane for n in ctx.notes}
+        n_lanes = ctx.lane_model.n_lanes
         return StagePreview(
             base="gray",
             overlays=(Overlay(kind="spans", data=spans),),
-            summary={"n_notes": len(ctx.notes)},
+            summary={
+                "n_notes": len(ctx.notes),
+                "lanes_used": len(used),
+                "lanes_unused": max(n_lanes - len(used), 0),
+            },
         )
 
     def interaction_points(self, ctx: PipelineContext) -> list[InteractionField]:

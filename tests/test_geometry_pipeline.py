@@ -172,6 +172,10 @@ def test_known_lane_count_grid_fits_many_lanes() -> None:
     assert doc.lane_model.n_lanes == spec.n_lanes
     assert abs(doc.lane_model.pitch_mm - spec.pitch_mm) / spec.pitch_mm < 0.01
     assert _match_notes(doc.notes, gt.notes) == len(gt.notes)
+    # the grid reaches the outermost lanes — the rightmost hole is lane N-1,
+    # not clamped short (the far-right-holes-without-lanes bug)
+    assert max(n.lane for n in doc.notes) == spec.n_lanes - 1
+    assert min(n.lane for n in doc.notes) == 0
 
 
 def test_session_n_lanes_override_beats_config() -> None:

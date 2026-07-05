@@ -219,6 +219,26 @@ def test_cli_lanes_flag_forces_count(tmp_path: Path) -> None:
     assert doc.lane_model.method == "fixed-count"
 
 
+def test_cli_verbose_narrates_stages(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    from perfora.cli import main
+
+    p = _make_roll_image(tmp_path, "roll.png", n_lanes=12)
+    out = tmp_path / "out.perfora.json"
+    code = main(["-i", str(p), "-o", str(out), "-v"] + _dpi_args())
+    assert code == 0
+
+    err = capsys.readouterr().err
+    # each stage announces what it does and reports what it found
+    assert "detecting perforations" in err
+    assert "measuring the lane grid" in err
+    assert "n_holes=" in err
+    assert "n_notes=" in err
+    assert "lanes_used=" in err
+    assert "detector=ContourDetector" in err
+
+
 def test_cli_lanes_flag_rejects_nonpositive(tmp_path: Path) -> None:
     from perfora.cli import main
 
