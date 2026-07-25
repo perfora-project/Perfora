@@ -63,8 +63,9 @@ def _infer_source_type(path: str) -> str:
     """Return ``'image'`` or ``'video'`` for a path.
 
     Prefers content sniffing via ``python-magic`` (libmagic); if python-magic or
-    the system libmagic is unavailable, or the MIME type is inconclusive, falls
-    back — without error — to matching the file extension.
+    the system libmagic is unavailable or disabled (see
+    :func:`_libmagic_allowed`), or the MIME type is inconclusive, falls back —
+    without error — to matching the file extension.
     """
     kind = _sniff_source_type(path)
     if kind is not None:
@@ -78,12 +79,38 @@ def _source_type_by_extension(path: str) -> str:
     return "video" if ext in _VIDEO_EXTS else "image"
 
 
+def _libmagic_allowed() -> bool:
+    """Whether content sniffing via python-magic may be attempted at all.
+
+    On Windows, python-magic needs a ``libmagic`` DLL that it does not ship. If
+    an incompatible one happens to be on ``PATH`` (Git for Windows installs
+    one), loading it faults the interpreter rather than raising ``ImportError``,
+    and no ``try``/``except`` can recover from that. Windows therefore uses the
+    extension fallback — which is a first-class path, not a degraded one —
+    unless the user opts back in.
+
+    Returns
+    -------
+    bool
+        ``True`` everywhere except Windows; on Windows, ``True`` only when the
+        environment variable ``PERFORA_USE_LIBMAGIC`` is set to a truthy value
+        (``1``, ``true``, ``yes``, ``on``).
+    """
+    if sys.platform != "win32":
+        return True
+    opt_in = os.environ.get("PERFORA_USE_LIBMAGIC", "").strip().lower()
+    return opt_in in {"1", "true", "yes", "on"}
+
+
 def _sniff_source_type(path: str) -> str | None:
     """Content-sniff ``'image'``/``'video'`` via libmagic, or ``None``.
 
-    Returns ``None`` (never raises) when python-magic or libmagic is missing, the
-    file can't be read, or the MIME type is neither image nor video.
+    Returns ``None`` (never raises) when python-magic or libmagic is missing or
+    disabled for the platform, the file can't be read, or the MIME type is
+    neither image nor video.
     """
+    if not _libmagic_allowed():
+        return None
     try:
         import magic
     except ImportError:

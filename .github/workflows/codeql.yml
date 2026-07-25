@@ -16,6 +16,13 @@ permissions:
 jobs:
   analyze:
     name: analyze python
+    # Code scanning on a private repository requires GitHub Advanced Security.
+    # Without it the API rejects the upload, so the job would fail on every
+    # push for a reason unrelated to the code. It starts working by itself the
+    # moment the repository becomes public (or GHAS is enabled).
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.repository.visibility == 'public'
     runs-on: ubuntu-latest
     permissions:
       security-events: write

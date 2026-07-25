@@ -75,7 +75,11 @@ jobs:
       # The image must decode the bundled sample before it is published.
       - name: smoke-test the image
         run: |
+          # The image runs as uid 1000 while the runner is a different user, so
+          # the bind mount has to be world-writable. Users hitting the same
+          # mismatch on their own machine can pass `--user "$(id -u):$(id -g)"`.
           mkdir -p /tmp/data
+          chmod 0777 /tmp/data
           docker run --rm -v /tmp/data:/data ${{ env.IMAGE }}:ci \
             perfora sample /data/roll
           docker run --rm -v /tmp/data:/data ${{ env.IMAGE }}:ci \

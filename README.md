@@ -204,6 +204,13 @@ wrong extension is still handled correctly. If python-magic or the system
 `libmagic` is unavailable it falls back, without error, to matching the
 extension. Use `--source-type {image,video}` to force it.
 
+> **On Windows, extension matching is the default.** python-magic needs a
+> `libmagic` DLL that it does not ship, and an incompatible one on `PATH` can
+> crash the interpreter outright, so perfora does not attempt it there. Name your
+> files with the right extension (or pass `--source-type`) and everything works.
+> If you have installed a known-good libmagic yourself, set the environment
+> variable `PERFORA_USE_LIBMAGIC=1` to switch sniffing back on.
+
 ### 4. Read the result
 
 The output is plain JSON — open it in any editor. `notes`, `texts` and
@@ -260,6 +267,11 @@ The image's default command is the notebook server; naming any other command
 after the image runs that instead (`perfora`, `perfora sample`, `perfora formats`,
 a shell, …). `/data` is where it reads and writes, so mount the folder holding
 your scans there.
+
+> **"Permission denied" writing to `/data`?** The container runs as an
+> unprivileged user (uid 1000). If your host folder belongs to a different user
+> id, add `--user "$(id -u):$(id -g)"` to the `docker run` line so the container
+> writes as you.
 
 Prebuilt images are published to `ghcr.io/perfora-project/perfora` on every change
 to `main` and on every release tag. While the repository is private you must

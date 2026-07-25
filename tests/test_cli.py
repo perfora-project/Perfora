@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 
 import cv2
@@ -10,6 +11,7 @@ import numpy as np
 import pytest
 from perfora.cli import (
     _infer_source_type,
+    _libmagic_allowed,
     _sniff_source_type,
     _source_type_by_extension,
 )
@@ -359,3 +361,34 @@ def test_source_type_falls_back_without_magic(monkeypatch: pytest.MonkeyPatch) -
     assert _sniff_source_type("whatever.png") is None
     assert _infer_source_type("clip.mp4") == "video"
     assert _infer_source_type("scan.png") == "image"
+
+
+# ---------------------------------------------------------------------------
+# Platform guard around libmagic
+# ---------------------------------------------------------------------------
+def test_libmagic_is_used_off_windows(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(sys, "platform", "linux")
+    assert _libmagic_allowed() is True
+
+
+def test_libmagic_is_skipped_on_windows(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Loading a mismatched libmagic DLL faults the interpreter on Windows.
+
+    Since that cannot be caught, Windows must not even attempt the import; the
+    extension fallback keeps working.
+    """
+    monkeypatch.setattr(sys, "platform", "win32")
+    monkeypatch.delenv("PERFORA_USE_LIBMAGIC", raising=False)
+    assert _libmagic_allowed() is False
+    assert _sniff_source_type("scan.png") is None
+    assert _infer_source_type("clip.mp4") == "video"
+    assert _infer_source_type("scan.png") == "image"
+
+
+def test_libmagic_opt_in_on_windows(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(sys, "platform", "win32")
+    for truthy in ("1", "true", "YES", "on"):
+        monkeypatch.setenv("PERFORA_USE_LIBMAGIC", truthy)
+        assert _libmagic_allowed() is True
+    monkeypatch.setenv("PERFORA_USE_LIBMAGIC", "0")
+    assert _libmagic_allowed() is False

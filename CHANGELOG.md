@@ -30,6 +30,16 @@ pre-1.0, the public API may still change between minor versions.
   templates, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, and
   `CITATION.cff`.
 
+### Fixed
+
+- **Windows: source-type sniffing no longer risks crashing the interpreter.**
+  python-magic needs a `libmagic` DLL it does not ship, and loading an
+  incompatible one (Git for Windows installs one) faults the process rather than
+  raising `ImportError`, which no `except` can recover from. perfora now skips
+  the sniffing path on Windows and uses its documented extension fallback;
+  `PERFORA_USE_LIBMAGIC=1` opts back in for anyone who has installed a
+  known-good libmagic.
+
 ### Changed
 
 - **License is now Apache-2.0** (previously AGPL-3.0), with a `NOTICE` file — a

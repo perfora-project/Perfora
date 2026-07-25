@@ -60,7 +60,10 @@ for correcting individual low-confidence results.
   `opencv-python` (headless in CI).
 - `python-magic` (libmagic) for content-based source-type detection, with a
   graceful, error-free fallback to extension matching when it or the system
-  `libmagic` is missing (so it never becomes a hard requirement).
+  `libmagic` is missing (so it never becomes a hard requirement). **On Windows
+  the sniffing path is not even attempted** (`cli._libmagic_allowed`): the DLL is
+  not shipped, and an incompatible one on `PATH` faults the interpreter, which no
+  `except` can catch. `PERFORA_USE_LIBMAGIC=1` opts back in.
 - OCR backends are **optional extras**, never imported by the core:
   - `pytesseract` (printed text) — extra `[tesseract]`
   - `transformers` + `torch` for TrOCR handwriting — extra `[trocr]`

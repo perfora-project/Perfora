@@ -61,6 +61,11 @@ jobs:
         if: runner.os == 'macOS'
         run: brew install libmagic
       - run: uv sync --extra dev
+      # Diagnostic only: records whether content sniffing is active on this
+      # platform. Never fails the job — the extension fallback is supported.
+      - name: report source-detection mode
+        continue-on-error: true
+        run: uv run python -c "from perfora.cli import _libmagic_allowed, _infer_source_type; print('libmagic allowed:', _libmagic_allowed()); print('README.md ->', _infer_source_type('README.md'))"
       - run: uv run pytest -q
 
   core-install:
@@ -108,8 +113,17 @@ jobs:
       - name: install the Tesseract engine and libmagic
         run: sudo apt-get update && sudo apt-get install -y tesseract-ocr libmagic1
       - run: uv sync --extra dev --extra tesseract
-      - name: run the tesseract-marked tests
-        run: uv run pytest -q -m tesseract
+      # The whole suite, not `-m tesseract`: the OCR tests gate on whether the
+      # backend is importable (skipif) rather than on a marker, so with the
+      # extra installed the full run is what actually exercises those paths.
+      - name: full test suite with the OCR backend available
+        run: uv run pytest -q
+      - name: the Tesseract recognizer must be the one that ran
+        run: |
+          uv run perfora sample ./sample
+          uv run perfora -i ./sample/sample_roll.png -o ./sample/out.perfora.json \
+              --dpi 300 -v 2>&1 | tee run.log
+          grep -q "recognizers=TesseractRecognizer" run.log
 
   package:
     # Builds the distribution and exercises it the way a user would, which is
