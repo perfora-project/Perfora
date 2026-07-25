@@ -12,3 +12,12 @@ wheels/
 # Sphinx documentation build output
 docs/_build/
 docs/_autosummary/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Working directories created by `perfora sample` / `perfora-notebook`, and
+# stage previews — outputs, never sources.
+perfora-sample/
+perfora-notebooks/
+previews/

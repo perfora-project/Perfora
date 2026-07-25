@@ -1,13 +1,16 @@
 """Batch command-line interface for perfora.
 
-Three subcommands
------------------
+Four subcommands
+----------------
 ``process`` (the default when no subcommand word is given)
     Decode one or more scan images / videos into the internal document format.
 ``convert``
     Transcode an already-decoded document between registered formats.
 ``formats``
     List all registered reader/writer formats with their file extensions.
+``sample``
+    Copy the bundled sample roll (and quickstart notebook) into a directory, so
+    a fresh install can be exercised before the user has a scan of their own.
 
 Exit codes
 ----------
@@ -43,7 +46,9 @@ _IMAGE_EXTS: frozenset[str] = frozenset(
 _VIDEO_EXTS: frozenset[str] = frozenset(
     {".mp4", ".mov", ".avi", ".mkv", ".m4v", ".webm"}
 )
-_SUBCOMMANDS: frozenset[str] = frozenset({"process", "convert", "formats"})
+_SUBCOMMANDS: frozenset[str] = frozenset(
+    {"process", "convert", "formats", "sample"}
+)
 
 
 # ---------------------------------------------------------------------------
@@ -463,13 +468,60 @@ def _cmd_formats(_args: argparse.Namespace) -> int:
 
 
 # ---------------------------------------------------------------------------
+# Subcommand: sample
+# ---------------------------------------------------------------------------
+def _cmd_sample(args: argparse.Namespace) -> int:
+    """Handle the ``sample`` subcommand: copy the bundled examples out."""
+    from perfora.resources import (
+        SAMPLE_ROLL_DPI,
+        SAMPLE_ROLL_LANES,
+        SAMPLE_ROLL_NOTES,
+        SAMPLE_ROLL_PITCH_MM,
+        copy_samples,
+    )
+
+    dest = Path(args.dir)
+    try:
+        written = copy_samples(
+            dest,
+            notebook=not args.no_notebook,
+            overwrite=args.force,
+        )
+    except OSError as exc:
+        _die(2, f"cannot write to {dest}: {exc}")
+
+    for path in written:
+        print(path)
+
+    roll = written[0]
+    dpi = int(SAMPLE_ROLL_DPI)
+    print(
+        f"\nA synthetic roll with known ground truth: {SAMPLE_ROLL_LANES} lanes, "
+        f"{SAMPLE_ROLL_PITCH_MM} mm pitch, {SAMPLE_ROLL_NOTES} notes, {dpi} dpi.\n"
+        f"Decode it with:\n\n"
+        f"    perfora -i {roll} -o {roll.with_suffix('')}.perfora.json --dpi {dpi}\n",
+        file=sys.stderr,
+    )
+    return 0
+
+
+# ---------------------------------------------------------------------------
 # Argparse parser construction
 # ---------------------------------------------------------------------------
 def _build_parser() -> _Parser:
     """Construct the top-level parser with all subcommands."""
+    from perfora import __version__
+
     p = _Parser(
         prog="perfora",
         description="Digitize player-piano roll scans and videos.",
+    )
+    p.add_argument(
+        "-V",
+        "--version",
+        action="version",
+        version=f"perfora {__version__}",
+        help="Print the perfora version and exit.",
     )
     subs = p.add_subparsers(dest="subcommand", parser_class=_Parser)
 
@@ -621,6 +673,35 @@ def _build_parser() -> _Parser:
     # ---- formats -------------------------------------------------------- #
     subs.add_parser("formats", help="List all registered formats.")
 
+    # ---- sample --------------------------------------------------------- #
+    sp = subs.add_parser(
+        "sample",
+        help="Copy the bundled sample roll and quickstart notebook to a folder.",
+        description=(
+            "Copy the bundled example files into DIR so you can try perfora "
+            "without a scan of your own. The sample roll is synthetic, with "
+            "known ground truth."
+        ),
+    )
+    sp.add_argument(
+        "dir",
+        nargs="?",
+        default="./perfora-sample",
+        metavar="DIR",
+        help="Destination directory (default: ./perfora-sample). Created if missing.",
+    )
+    sp.add_argument(
+        "--no-notebook",
+        action="store_true",
+        help="Copy only the sample roll image, not the quickstart notebook.",
+    )
+    sp.add_argument(
+        "-f",
+        "--force",
+        action="store_true",
+        help="Overwrite example files that already exist in DIR.",
+    )
+
     return p
 
 
@@ -634,7 +715,7 @@ def _inject_default_subcommand(argv: list[str]) -> list[str]:
     first = argv[0]
     if first in _SUBCOMMANDS:
         return argv
-    if first in ("-h", "--help"):
+    if first in ("-h", "--help", "-V", "--version"):
         return argv
     return ["process"] + argv
 
@@ -667,6 +748,8 @@ def main(argv: list[str] | None = None) -> int:
             return _cmd_convert(args)
         if sub == "formats":
             return _cmd_formats(args)
+        if sub == "sample":
+            return _cmd_sample(args)
         # No subcommand (empty argv): show help and return 2
         parser.print_help(sys.stderr)
         return 2

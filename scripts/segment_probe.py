@@ -26,9 +26,8 @@ from pathlib import Path
 
 import cv2
 import numpy as np
-from scipy import ndimage
-
 from perfora.utils.signal import comb_fit, estimate_pitch
+from scipy import ndimage
 
 
 def _background_color(img: np.ndarray, frac: float = 0.02) -> np.ndarray:
