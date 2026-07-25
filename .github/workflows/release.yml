@@ -1,0 +1,102 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to build a release from (e.g. v0.2.0)"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: build distributions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - name: install libmagic
+        run: sudo apt-get update && sudo apt-get install -y libmagic1
+
+      - name: the tag must match the version in the package
+        run: |
+          tag="${{ inputs.tag || github.ref_name }}"
+          version="v$(uv run --no-project --with tomli python -c \
+            'import tomli;print(tomli.load(open("pyproject.toml","rb"))["project"]["version"])')"
+          if [ "$tag" != "$version" ]; then
+            echo "::error::tag $tag does not match project version $version"
+            exit 1
+          fi
+
+      - run: uv build
+      - name: metadata is well formed
+        run: uvx twine check dist/*
+
+      # Prove the artifact works before it is published, not after.
+      - name: smoke-test the built wheel
+        run: |
+          uv venv /tmp/smoke
+          VIRTUAL_ENV=/tmp/smoke uv pip install dist/*.whl
+          /tmp/smoke/bin/perfora sample /tmp/roll
+          /tmp/smoke/bin/perfora -i /tmp/roll/sample_roll.png \
+              -o /tmp/roll/out.perfora.json --dpi 300
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: distributions
+          path: dist/
+
+  github-release:
+    name: publish a GitHub release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          name: distributions
+          path: dist/
+      - name: create the release and attach the distributions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="${{ inputs.tag || github.ref_name }}"
+          gh release create "$tag" dist/* \
+            --title "perfora $tag" \
+            --generate-notes \
+            --verify-tag
+
+  # ---------------------------------------------------------------------------
+  # Publishing to PyPI is deliberately not enabled yet: perfora is pre-release
+  # and the repository is private. When the time comes, create the project on
+  # PyPI, register this repository + the `pypi` environment as a trusted
+  # publisher (https://docs.pypi.org/trusted-publishers/), and uncomment the job
+  # below. No API token is ever needed.
+  #
+  # pypi:
+  #   name: publish to PyPI
+  #   needs: build
+  #   runs-on: ubuntu-latest
+  #   environment: pypi
+  #   permissions:
+  #     id-token: write
+  #   steps:
+  #     - uses: actions/download-artifact@v4
+  #       with:
+  #         name: distributions
+  #         path: dist/
+  #     - uses: pypa/gh-action-pypi-publish@release/v1

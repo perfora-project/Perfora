@@ -1,0 +1,139 @@
+# Contributing to perfora
+
+Thank you for considering it. Contributions are welcome from programmers **and**
+from people who work with rolls — a careful bug report about a roll perfora got
+wrong is as valuable here as a patch.
+
+- [Ways to help without writing code](#ways-to-help-without-writing-code)
+- [Development setup](#development-setup)
+- [The checks that must pass](#the-checks-that-must-pass)
+- [Project rules that reviews enforce](#project-rules-that-reviews-enforce)
+- [Testing philosophy](#testing-philosophy)
+- [Documentation is part of "done"](#documentation-is-part-of-done)
+- [Commits, branches, releases](#commits-branches-releases)
+- [Licensing of contributions](#licensing-of-contributions)
+
+## Ways to help without writing code
+
+- **Report a roll that decodes badly.** Use the
+  ["A roll came out wrong"](https://github.com/perfora-project/Perfora/issues/new?template=01-roll-decoded-wrong.yml)
+  form. Re-run with `-v` and, if you can, `--preview-dir ./previews`, then paste
+  what perfora printed and attach the preview pictures. Real failure cases are
+  what drive the algorithms forward.
+- **Tell us what is unclear.** If a word, an option or an output field made no
+  sense, that is a documentation bug — please open a question issue.
+- **Describe your roll standard.** perfora deliberately *measures* spacing
+  instead of assuming a standard, so knowing which standards exist, and how
+  their perforations look, helps us test against reality.
+
+## Development setup
+
+perfora uses [uv](https://docs.astral.sh/uv/).
+
+```bash
+git clone https://github.com/perfora-project/Perfora.git
+cd Perfora
+uv sync --extra dev          # core + test tooling
+uv run pytest                # should be green before you change anything
+```
+
+Optional extras, added only when you need them:
+
+```bash
+uv sync --extra dev --extra tesseract   # printed-text OCR (needs the system engine)
+uv sync --extra dev --extra notebook    # `perfora-notebook`
+uv sync --extra docs                    # building the documentation
+```
+
+The **core install must stay light**. `uv sync` with no extras has to be enough
+for image → holes → lanes → notes and for native JSON I/O; CI has a job that
+fails if that stops being true.
+
+## The checks that must pass
+
+```bash
+uv run ruff check .                                     # lint
+uv run mypy                                             # strict typing on perfora/
+uv run pytest                                           # the whole suite
+uv run sphinx-build -b html -W docs docs/_build/html     # docs, warnings as errors
+```
+
+Note: the project lints with `ruff check` but does **not** enforce
+`ruff format` — do not reformat files you are not otherwise touching, as it
+buries the real change in noise.
+
+If you change `pyproject.toml`, refresh the lockfile (`uv sync`) and commit
+`uv.lock`; CI runs locked and will fail on a stale one.
+
+## Project rules that reviews enforce
+
+These come from [`CLAUDE.md`](https://github.com/perfora-project/Perfora/blob/main/CLAUDE.md), which is the project's contract:
+
+1. **The roll logic is ours.** Periodicity detection, lane assignment, note
+   assembly, text association and video reconstruction are implemented from
+   scratch on generic primitives (numpy, scipy, scikit-image, OpenCV). Do not add
+   or wrap another player-piano / piano-roll decoding library, and do not port
+   another project's lane-finding algorithm. Generic image processing from
+   libraries is encouraged.
+2. **Spacing is measured, never assumed.** Hole pitch differs between roll
+   standards, so the lane model is derived from the scan. A known lane count may
+   be *supplied* as ground truth (`--lanes`), but nothing may be hardcoded.
+3. **Millimetres leave the stages.** Pixels exist only inside image-processing
+   code; everything in the data model is mm, with a `Calibration` recording the
+   px↔mm relationship. Time and MIDI are *derived*, never stored.
+4. **Axes are `u` and `v`.** `u` = travel/length (notes extend along it), `v` =
+   across the roll (where lanes live). Never bare x/y in the model.
+5. **Recognition is an interface.** Text detection/recognition sits behind
+   protocols; backends are swappable and the shipped ones are offline.
+6. **Reader/Writer symmetry.** Anything perfora can write, it can read back into
+   an identical model.
+7. **Nothing uncertain is dropped.** Confidence is a float in `[0, 1]`; anything
+   below a stage's threshold goes to the review queue instead of vanishing.
+8. **No network at import time.** Backends that need a model fetch it lazily on
+   first use.
+
+## Testing philosophy
+
+Tests are **deterministic and synthetic**. `tests/fixtures/synth.py` renders
+rolls from a specification and returns the ground-truth document alongside the
+image, so a test can assert exact lane counts, pitches and note positions.
+
+- Prefer a new `RollSpec` variation over a new binary fixture.
+- Only two binary assets are shipped: the sample roll
+  (`perfora/resources/sample_roll.png`, itself generated by
+  `scripts/make_sample_roll.py`) and the logo. Do not add scans of real rolls to
+  the repository — provenance and rights are rarely clear, and the files are big.
+- Tests that need an optional backend are marked (`@pytest.mark.tesseract`,
+  `trocr`, `easyocr`) and skip cleanly without it.
+- If you fix a decoding bug, add the roll shape that broke it to the synthetic
+  generator so it can never silently come back.
+
+## Documentation is part of "done"
+
+A change is not finished until the documentation moved with it:
+
+- `README.md` — the user-facing guide; keep examples runnable and honest about
+  what ships today.
+- `Config` fields — the `#:` comment above a field *is* the configuration
+  reference. Names and defaults must match the README table exactly.
+- Docstrings — NumPy style, stating units and axis conventions.
+- `CHANGELOG.md` — an entry under *Unreleased*.
+- `CLAUDE.md` — only if a constraint, the stack, or the workflow changed.
+
+## Commits, branches, releases
+
+- Branch off `main`; open a pull request against `main`.
+- Commit subjects follow [Conventional Commits](https://www.conventionalcommits.org):
+  `feat(lanes): ...`, `fix(holes): ...`, `docs: ...`, `ci: ...`.
+- Releases are tag-driven: bump `version` in `pyproject.toml` and
+  `perfora/__init__.py`, move the `CHANGELOG.md` entries under a new heading,
+  then push a `vX.Y.Z` tag. CI builds the distributions, smoke-tests the wheel
+  against the sample roll, and attaches them to a GitHub release. Publishing to
+  PyPI is not enabled yet (see the commented job in
+  `.github/workflows/release.yml`).
+
+## Licensing of contributions
+
+perfora is licensed under [Apache-2.0](https://github.com/perfora-project/Perfora/blob/main/LICENSE). By contributing you agree that
+your contribution is licensed under the same terms (Apache-2.0 §5). There is no
+CLA. Please do not paste code from projects under incompatible licenses.

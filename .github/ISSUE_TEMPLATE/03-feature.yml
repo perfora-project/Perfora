@@ -1,0 +1,41 @@
+name: "Feature or format request"
+description: "Ask for a capability, an export format, or a change to how perfora works."
+title: "[feature] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: What are you trying to do?
+      description: |
+        Describe the research or archival task, not only the feature. Knowing
+        the goal often reveals a better fit for the data model — and perfora's
+        model deliberately stores millimetres and derives everything else.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would you like perfora to do?
+      placeholder: "Export to MusicXML so the result can be opened in notation software."
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which part does this concern?
+      options:
+        - decoding a scan (holes, lanes, notes)
+        - decoding a video
+        - text and handwriting (OCR)
+        - output formats and I/O
+        - the command line
+        - the notebook or a graphical interface
+        - the Python API
+        - documentation
+        - something else
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: How do you work around it today?

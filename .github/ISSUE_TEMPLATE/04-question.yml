@@ -1,0 +1,27 @@
+name: "Question / help with a roll"
+description: "You are not sure how to do something, or what a result means. Non-technical questions are welcome."
+title: "[question] "
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        There is no such thing as too basic a question here. Before asking, the
+        [README](https://github.com/perfora-project/Perfora#readme) covers
+        installation and a first run, and the
+        [glossary](https://perfora.readthedocs.io/en/latest/glossary.html)
+        explains the words perfora uses (lane, pitch, calibration, review
+        queue, `u`/`v`).
+
+  - type: textarea
+    id: question
+    attributes:
+      label: Your question
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: What you have tried, and anything perfora printed
+      render: text

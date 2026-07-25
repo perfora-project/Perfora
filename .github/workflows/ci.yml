@@ -1,0 +1,171 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Fail loudly if uv.lock is out of date with pyproject.toml, instead of
+  # silently resolving something different from what developers run locally.
+  UV_LOCKED: "1"
+
+jobs:
+  lint:
+    name: lint & types
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --extra dev
+      - name: ruff
+        run: uv run ruff check .
+      - name: mypy (strict on perfora/)
+        run: uv run mypy
+
+  test:
+    name: test ${{ matrix.os }} / py${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, python: "3.11" }
+          - { os: ubuntu-latest, python: "3.12" }
+          - { os: ubuntu-latest, python: "3.13" }
+          - { os: macos-latest, python: "3.12" }
+          - { os: windows-latest, python: "3.12" }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          python-version: ${{ matrix.python }}
+      # Content-based source detection uses libmagic. perfora falls back to
+      # extension matching when it is absent (which is the case on Windows
+      # runners) — the tests must pass either way.
+      - name: install libmagic (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libmagic1
+      - name: install libmagic (macOS)
+        if: runner.os == 'macOS'
+        run: brew install libmagic
+      - run: uv sync --extra dev
+      - run: uv run pytest -q
+
+  core-install:
+    # Enforces the hard constraint from CLAUDE.md: the image -> holes -> lanes
+    # -> notes path and native JSON I/O must work with only the light core
+    # dependencies installed — no OCR, no ML, no CLI extras.
+    name: core install only
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - name: install libmagic
+        run: sudo apt-get update && sudo apt-get install -y libmagic1
+      # `dev` is an extra rather than a dependency group, so a plain sync
+      # installs the core dependencies and nothing else.
+      - name: sync core dependencies (no extras)
+        run: uv sync
+      - name: importing perfora must not pull in heavy backends
+        run: |
+          uv run python - <<'PY'
+          import sys
+          import perfora
+          forbidden = {"torch", "transformers", "easyocr", "pytesseract", "doctr"}
+          loaded = forbidden & set(sys.modules)
+          assert not loaded, f"core import pulled in {loaded}"
+          print("perfora", perfora.__version__, "imported clean")
+          PY
+      - name: decode the bundled sample roll
+        run: |
+          uv run perfora sample ./sample
+          uv run perfora -i ./sample/sample_roll.png -o ./sample/out.perfora.json --dpi 300
+      - name: full test suite on a core-only environment
+        run: uv run --with pytest --with hypothesis pytest -q
+
+  extras:
+    name: OCR extras (tesseract)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - name: install the Tesseract engine and libmagic
+        run: sudo apt-get update && sudo apt-get install -y tesseract-ocr libmagic1
+      - run: uv sync --extra dev --extra tesseract
+      - name: run the tesseract-marked tests
+        run: uv run pytest -q -m tesseract
+
+  package:
+    # Builds the distribution and exercises it the way a user would, which is
+    # the only way to catch missing package data (the sample roll and the
+    # quickstart notebook are data files, not modules).
+    name: build & smoke-test the wheel
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - name: install libmagic
+        run: sudo apt-get update && sudo apt-get install -y libmagic1
+      - run: uv build
+      - name: metadata is well formed
+        run: uvx twine check dist/*
+      - name: install the wheel into a clean environment
+        run: |
+          uv venv /tmp/smoke
+          VIRTUAL_ENV=/tmp/smoke uv pip install dist/*.whl
+      - name: the shipped examples must decode to their ground truth
+        run: |
+          /tmp/smoke/bin/perfora sample /tmp/roll
+          /tmp/smoke/bin/perfora -i /tmp/roll/sample_roll.png \
+              -o /tmp/roll/out.perfora.json --dpi 300 -v
+          /tmp/smoke/bin/python - <<'PY'
+          import json
+          doc = json.load(open("/tmp/roll/out.perfora.json"))["document"]
+          assert doc["lane_model"]["n_lanes"] == 25, doc["lane_model"]
+          assert len(doc["notes"]) == 34, len(doc["notes"])
+          assert doc["review_queue"] == [], doc["review_queue"]
+          print("sample roll decoded to ground truth")
+          PY
+      - name: perfora-notebook is wired up and explains the missing extra
+        run: |
+          set +e
+          /tmp/smoke/bin/perfora-notebook --dir /tmp/nb 2>&1 | tee /tmp/nb.log
+          grep -q "notebook extra" /tmp/nb.log || grep -q "extra notebook" /tmp/nb.log
+      - uses: actions/upload-artifact@v4
+        with:
+          name: distributions
+          path: dist/
+
+  docs:
+    name: docs build (warnings are errors)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --extra docs
+      - name: sphinx-build -W
+        run: uv run sphinx-build -b html -W --keep-going docs docs/_build/html
+      - uses: actions/upload-artifact@v4
+        with:
+          name: docs-html
+          path: docs/_build/html/

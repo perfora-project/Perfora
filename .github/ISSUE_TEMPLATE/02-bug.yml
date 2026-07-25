@@ -1,0 +1,60 @@
+name: "Bug report (crash or error)"
+description: "perfora stopped with an error, produced no output, or behaved incorrectly as software."
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: "What you expected, and what happened instead."
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: How to reproduce it
+      description: |
+        The exact command or Python snippet. If it happens with the bundled
+        sample roll (`perfora sample ./sample`), say so — that makes it
+        reproducible for everyone.
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: error
+    attributes:
+      label: The error message
+      description: "The whole traceback or error text, not just the last line."
+      render: text
+
+  - type: input
+    id: version
+    attributes:
+      label: perfora version
+      description: "Output of `perfora --version`."
+    validations:
+      required: true
+
+  - type: input
+    id: python
+    attributes:
+      label: Python version and OS
+      placeholder: "Python 3.12 on Ubuntu 24.04 (installed with uv)"
+
+  - type: dropdown
+    id: extras
+    attributes:
+      label: Which extras are installed?
+      multiple: true
+      options:
+        - none (core install only)
+        - tesseract
+        - trocr
+        - easyocr
+        - doctr
+        - cli
+        - notebook
+        - the Docker image

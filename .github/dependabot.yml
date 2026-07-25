@@ -1,0 +1,49 @@
+version: 2
+
+updates:
+  # Python dependencies, resolved through uv.lock so CI and local runs agree.
+  - package-ecosystem: "uv"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    groups:
+      # One PR for the scientific core: these move together and are tested
+      # together, so separate PRs would just multiply CI runs.
+      scientific-stack:
+        patterns:
+          - "numpy"
+          - "scipy"
+          - "pandas"
+          - "scikit-image"
+          - "opencv-python-headless"
+      dev-tooling:
+        patterns:
+          - "pytest*"
+          - "ruff"
+          - "mypy"
+          - "hypothesis"
+          - "sphinx*"
+          - "furo"
+          - "myst-parser"
+    commit-message:
+      prefix: "deps"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: "ci"
+
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    commit-message:
+      prefix: "docker"

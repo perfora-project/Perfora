@@ -1,0 +1,76 @@
+name: "A roll came out wrong"
+description: "perfora ran, but the notes, lanes or text it found do not match the roll."
+title: "[roll] "
+labels: ["decoding"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        You do not need to be a programmer to file this — the numbers perfora
+        prints are enough for us to start. Nothing here is required except the
+        first box.
+
+        If it helps, run the command with `--preview-dir ./previews` added; it
+        saves a picture of every step, and you can drag those pictures straight
+        into this form.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What went wrong?
+      description: "In your own words — e.g. 'it found 44 lanes but the roll has 88', or 'long notes are split into many short ones'."
+      placeholder: "perfora reported ... but the roll actually ..."
+    validations:
+      required: true
+
+  - type: input
+    id: command
+    attributes:
+      label: The command you ran
+      description: "Copy and paste the whole line."
+      placeholder: "perfora -i my_roll.tif -o my_roll.perfora.json --dpi 600"
+
+  - type: textarea
+    id: output
+    attributes:
+      label: What perfora printed
+      description: "Best if you re-run with `-v` added, which makes perfora narrate each step. Paste everything it printed."
+      render: text
+      placeholder: |
+        [perfora] lanes: done — pitch_mm=3.0, n_lanes=88, confidence=1.0, method=fixed-count
+        [perfora] notes: done — n_notes=615, lanes_used=71, lanes_unused=17
+
+  - type: textarea
+    id: roll
+    attributes:
+      label: About the roll
+      description: "Whatever you know: the roll standard or maker, how many keys/lanes it should have, whether the perforations are round holes or long slots, its width, and anything unusual (torn edges, repairs, handwriting)."
+      placeholder: |
+        88-note Welte roll, ~28 cm wide, long slot perforations, a taped repair
+        near the start.
+
+  - type: input
+    id: scanning
+    attributes:
+      label: How it was scanned
+      description: "Scanner or camera, the DPI you used, and the background it lay on."
+      placeholder: "Flatbed at 600 dpi, on a white sheet"
+
+  - type: textarea
+    id: previews
+    attributes:
+      label: Pictures (optional but very helpful)
+      description: "Drag in the files from `--preview-dir`, especially `__03_lanes.png`. A photo or crop of the roll itself is welcome too — only if you are free to share it."
+
+  - type: input
+    id: version
+    attributes:
+      label: perfora version
+      description: "Run `perfora --version`, or say how you installed it."
+      placeholder: "0.1.0"
+
+  - type: input
+    id: platform
+    attributes:
+      label: Operating system
+      placeholder: "Windows 11 / macOS 15 / Ubuntu 24.04 / Docker"

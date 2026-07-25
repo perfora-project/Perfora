@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Documentation
+    url: https://perfora.readthedocs.io
+    about: Installation, the first run, every configuration field, and the glossary.
+  - name: Getting good results from a scan
+    url: https://github.com/perfora-project/Perfora#getting-good-results
+    about: Calibration, scanning advice, and the two settings that fix most problems.
