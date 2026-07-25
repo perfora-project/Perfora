@@ -1,0 +1,43 @@
+# Citation metadata for perfora, in Citation File Format.
+# https://citation-file-format.github.io
+#
+# GitHub reads this file and offers a ready-made citation in the sidebar
+# ("Cite this repository"), in APA and BibTeX.
+#
+# TODO before the first public release:
+#   * add `orcid:` to the author entry (https://orcid.org/…),
+#   * add `affiliation:`,
+#   * archive a tagged release on Zenodo and add the resulting `doi:` here,
+#   * once a paper describing the method exists, add it as
+#     `preferred-citation:` so citations point at the paper while this file
+#     still credits the software itself.
+
+cff-version: 1.2.0
+message: "If you use perfora in your research, please cite it as below."
+title: "perfora: digitizing player-piano rolls into a reversible, millimetre-based model"
+abstract: >-
+  perfora turns scans and videos of player-piano rolls into structured,
+  reversible data: every perforation as a note positioned in millimetres, and
+  every printed or handwritten label with its position and scope. Lane spacing is
+  measured from the roll rather than assumed, so unknown roll standards are
+  handled without configuration, and uncertain results are recorded for review
+  rather than discarded.
+type: software
+authors:
+  - given-names: Alexander
+    family-names: Vollmer
+    email: alexander.vollmer.95@hotmail.de
+repository-code: "https://github.com/perfora-project/Perfora"
+url: "https://perfora.readthedocs.io"
+license: Apache-2.0
+version: 0.1.0
+keywords:
+  - player piano
+  - piano roll
+  - music roll
+  - digitization
+  - digital humanities
+  - musicology
+  - music information retrieval
+  - optical music recognition
+  - cultural heritage

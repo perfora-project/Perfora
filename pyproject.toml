@@ -4,8 +4,34 @@ version = "0.1.0"
 description = "Digitize player-piano roll scans and videos into a reversible, millimetre-based model of perforations and text."
 readme = "README.md"
 requires-python = ">=3.11"
-license = { file = "LICENSE" }
-authors = [{ name = "RedRem95", email = "alexander.vollmer.95@hotmail.de" }]
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+authors = [{ name = "Alexander Vollmer", email = "alexander.vollmer.95@hotmail.de" }]
+keywords = [
+    "player-piano",
+    "piano-roll",
+    "music-roll",
+    "digitization",
+    "digital-humanities",
+    "musicology",
+    "optical-music-recognition",
+    "image-processing",
+    "cultural-heritage",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Multimedia :: Sound/Audio :: MIDI",
+    "Topic :: Scientific/Engineering :: Image Processing",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+    "Typing :: Typed",
+]
 dependencies = [
     "numpy",
     "scipy",
@@ -17,8 +43,18 @@ dependencies = [
     "python-magic",
 ]
 
+[project.urls]
+Homepage = "https://github.com/perfora-project/Perfora"
+Documentation = "https://perfora.readthedocs.io"
+Repository = "https://github.com/perfora-project/Perfora"
+Issues = "https://github.com/perfora-project/Perfora/issues"
+Changelog = "https://github.com/perfora-project/Perfora/blob/main/CHANGELOG.md"
+
 [project.scripts]
 perfora = "perfora.cli:main"
+# Launches a local Jupyter server on the bundled quickstart notebook. Requires
+# the [notebook] extra; exits with a helpful message when it is missing.
+perfora-notebook = "perfora.notebook:main"
 
 [project.optional-dependencies]
 tesseract = ["pytesseract"]
@@ -27,7 +63,9 @@ easyocr = ["easyocr"]
 doctr = ["python-doctr"]
 midi = ["mido"]
 cli = ["rich", "questionary", "pillow"]
-all = ["perfora[tesseract,trocr,easyocr,doctr,midi,cli]"]
+# Guided, browser-based exploration of the pipeline (`perfora-notebook`).
+notebook = ["jupyterlab>=4", "matplotlib", "pillow"]
+all = ["perfora[tesseract,trocr,easyocr,doctr,midi,cli,notebook]"]
 dev = ["pytest", "ruff", "mypy", "hypothesis"]
 docs = [
     "sphinx>=7",
@@ -41,6 +79,23 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["perfora"]
+# Bundled sample roll and quickstart notebook (`perfora sample`,
+# `perfora-notebook`) are data files, not modules — ship them explicitly.
+artifacts = ["perfora/resources/*.png", "perfora/resources/*.ipynb"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "perfora",
+    "tests",
+    "docs",
+    "scripts",
+    "README.md",
+    "CHANGELOG.md",
+    "CITATION.cff",
+    "CONTRIBUTING.md",
+    "LICENSE",
+    "NOTICE",
+]
 
 [tool.ruff]
 line-length = 88
@@ -52,6 +107,11 @@ select = ["E", "F", "I", "UP", "B", "W", "N", "SIM"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["N802", "N803", "N806"]
+# The quickstart notebook puts the three settings a reader must edit at the very
+# top of the first cell, above the imports. That is deliberate teaching order.
+"perfora/resources/*.ipynb" = ["E402"]
+# Development scripts print freely and are not part of the library surface.
+"scripts/**" = ["T201"]
 
 [tool.mypy]
 python_version = "3.11"
