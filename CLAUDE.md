@@ -66,11 +66,29 @@ for correcting individual low-confidence results.
   - `transformers` + `torch` for TrOCR handwriting — extra `[trocr]`
   - `easyocr` (detection + light handwriting) — extra `[easyocr]`
 - Tooling: `pytest`, `ruff`, `mypy` (strict on `perfora/`), `hatchling` build
-  backend.
-- A console entry point `perfora` (`perfora.cli:main`), argparse-based so the
-  basic CLI needs no extra dependencies; an optional `[cli]` extra (`rich`,
-  `questionary`, `pillow`) only upgrades interactive prompts and inline previews,
-  with graceful fallback to plain `input()` when it is absent.
+  backend. CI runs `ruff check` but **not** `ruff format` — do not reformat files
+  wholesale.
+- Two console entry points:
+  - `perfora` (`perfora.cli:main`), argparse-based so the basic CLI needs no
+    extra dependencies; an optional `[cli]` extra (`rich`, `questionary`,
+    `pillow`) only upgrades interactive prompts and inline previews, with
+    graceful fallback to plain `input()` when it is absent. Subcommands:
+    `process` (default), `convert`, `formats`, `sample`.
+  - `perfora-notebook` (`perfora.notebook:main`), which copies the bundled
+    examples into a working directory and starts a JupyterLab server on the
+    quickstart notebook. Needs the `[notebook]` extra (`jupyterlab`,
+    `matplotlib`, `pillow`); without it, it prints how to install it and exits
+    `3` rather than raising.
+- Bundled example data lives in `perfora/resources/` (a package, shipped as
+  wheel data): `sample_roll.png` — a *synthetic* roll with exact ground truth
+  (25 lanes, 3.0 mm pitch, 34 notes, 300 dpi), regenerated deterministically by
+  `scripts/make_sample_roll.py` — and `quickstart.ipynb`. Never commit scans of
+  real rolls (rights, provenance, size). `tests/test_resources.py` asserts the
+  sample still decodes to its ground truth, so it doubles as a regression test
+  for the whole pipeline.
+- A `Dockerfile` builds an image whose **default command is the notebook
+  server**; every other entry point is reachable by naming it after the image.
+  It includes Tesseract but deliberately not TrOCR/EasyOCR (PyTorch bulk).
 
 The **core install must stay light**: importing `perfora`, running the image →
 holes → lanes → notes path, and reading/writing the native JSON format must work
@@ -125,11 +143,46 @@ documentation is not a follow-up. A change is not finished until:
      remove, or change a field (and the `Config` table in the README).
    - `docs/index.md` includes `README.md`, so narrative changes flow through; the
      design docs (`ARCHITECTURE/ALGORITHMS/CLI/BUILD_PLAN`) are linked from
-     `docs/design.md`.
-   - Verify it still builds: `uv run sphinx-build -b html docs docs/_build/html`.
+     `docs/design.md`; `docs/changelog.md` and `docs/contributing.md` include
+     the root files of the same name.
+   - `docs/glossary.md` (plain-language definitions, `{glossary}` directive) and
+     `docs/output.md` (field-by-field walkthrough of `.perfora.json`) are the
+     non-technical entry points — a new output field or review reason must be
+     added there too.
+   - Verify it still builds **warning-free**, because CI and Read the Docs treat
+     warnings as errors:
+     `uv run sphinx-build -b html -W docs docs/_build/html`.
+4. **`CHANGELOG.md`** — an entry under *Unreleased* (Keep a Changelog format).
+5. **The quickstart notebook** (`perfora/resources/quickstart.ipynb`) if the
+   library surface it demonstrates changed. Ship it with cleared outputs and
+   line-list `source` values; `tests/test_resources.py` enforces both and
+   compiles every code cell.
 
 If a change touches a default or a `Config` field, the new value/name must be
 identical across the code, the README configuration table, and the `#:` comment.
+
+## Repository infrastructure
+
+- **License: Apache-2.0** (`LICENSE` + `NOTICE`), declared as a PEP 639
+  expression in `pyproject.toml`. Chosen over copyleft so research and archive
+  institutions can adopt it and cite it; contributions come in under the same
+  license (no CLA).
+- **Citation:** `CITATION.cff` (validated with `uvx cffconvert --validate`), plus
+  the README's *Citing perfora* section. A Zenodo DOI and a method paper are
+  pending; both are marked TODO in the file.
+- **CI** (`.github/workflows/ci.yml`) gates: `ruff check`, `mypy`, pytest on
+  Linux/macOS/Windows × Python 3.11–3.13, a **core-install-only** job that fails
+  if the light dependency set stops being sufficient, a Tesseract-extras job, a
+  wheel smoke test that decodes the bundled sample, and a `-W` docs build. CI
+  runs with `UV_LOCKED=1`, so commit a refreshed `uv.lock` whenever
+  `pyproject.toml` changes.
+- **Releases** are tag-driven (`v*` → `.github/workflows/release.yml`): the tag
+  must equal `project.version`, the wheel is smoke-tested, and the artifacts are
+  attached to a GitHub release. PyPI publishing is prepared but commented out.
+- Also present: container builds to GHCR, CodeQL, Dependabot (uv + actions +
+  docker), issue forms (including a non-technical "a roll came out wrong" form),
+  a PR template mirroring these rules, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`,
+  `SECURITY.md`.
 
 ## Repo layout (target)
 
@@ -145,7 +198,11 @@ perfora/        # the library
   io/           # Reader/Writer ABCs, registry, native JSON (+ later MIDI)
   review/       # uncertainty / review-queue handling
   utils/        # imaging + signal helpers
+  resources/    # bundled sample roll + quickstart notebook (wheel data)
   cli.py        # batch + interactive command-line interface
+  notebook.py   # `perfora-notebook` launcher (needs the [notebook] extra)
 tests/
 docs/
+scripts/        # maintenance scripts (sample-roll generator, probes)
+.github/        # CI, release, docker, CodeQL, dependabot, issue/PR templates
 ```

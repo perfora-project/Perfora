@@ -19,7 +19,8 @@ The user's priority: clean interfaces, reversible I/O, and a UI-drivable pipelin
 shell — all before any CV work.
 
 **Tasks**
-- Update README.md and LICENSE with correct project name, summary and owner as RedRem95
+- Update README.md and LICENSE with correct project name, summary and owner
+  (Alexander Vollmer; the repository lives at `perfora-project/Perfora`)
 - Package + `pyproject.toml` (hatchling), extras and `[project.scripts] perfora`
   as in Architecture §9, plus `ruff` + `mypy` (strict on `perfora/`) + `pytest`.
 - `perfora.model`: `geometry.py`, `calibration.py`, `document.py` with every

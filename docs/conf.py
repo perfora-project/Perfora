@@ -16,8 +16,8 @@ sys.path.insert(0, os.path.abspath(".."))
 
 # -- Project ---------------------------------------------------------------- #
 project = "perfora"
-author = "RedRem95"
-copyright = "2026, RedRem95"  # noqa: A001
+author = "Alexander Vollmer"
+copyright = "2026, Alexander Vollmer and the perfora contributors"  # noqa: A001
 try:
     release = importlib.metadata.version("perfora")
 except importlib.metadata.PackageNotFoundError:
