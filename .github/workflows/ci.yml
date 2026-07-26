@@ -23,8 +23,8 @@ jobs:
     name: lint & types
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
       - run: uv sync --extra dev
@@ -46,8 +46,8 @@ jobs:
           - { os: macos-latest, python: "3.12" }
           - { os: windows-latest, python: "3.12" }
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
           python-version: ${{ matrix.python }}
@@ -75,8 +75,8 @@ jobs:
     name: core install only
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
       - name: install libmagic
@@ -106,8 +106,8 @@ jobs:
     name: OCR extras (tesseract)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
       - name: install the Tesseract engine and libmagic
@@ -132,8 +132,8 @@ jobs:
     name: build & smoke-test the wheel
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
       - name: install libmagic
@@ -163,7 +163,7 @@ jobs:
           set +e
           /tmp/smoke/bin/perfora-notebook --dir /tmp/nb 2>&1 | tee /tmp/nb.log
           grep -q "notebook extra" /tmp/nb.log || grep -q "extra notebook" /tmp/nb.log
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: distributions
           path: dist/
@@ -172,14 +172,14 @@ jobs:
     name: docs build (warnings are errors)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
       - run: uv sync --extra docs
       - name: sphinx-build -W
         run: uv run sphinx-build -b html -W --keep-going docs docs/_build/html
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: docs-html
           path: docs/_build/html/
