@@ -15,7 +15,7 @@
 # which would multiply the image size) — install those in a derived image if you
 # need handwriting recognition.
 
-FROM python:3.12-slim AS runtime
+FROM python:3.14-slim AS runtime
 
 LABEL org.opencontainers.image.title="perfora" \
       org.opencontainers.image.description="Digitize player-piano roll scans and videos into a reversible, millimetre-based model of perforations and text." \
