@@ -43,6 +43,8 @@ jobs:
           - { os: ubuntu-latest, python: "3.11" }
           - { os: ubuntu-latest, python: "3.12" }
           - { os: ubuntu-latest, python: "3.13" }
+          # The container image ships 3.14, so it has to be tested here too.
+          - { os: ubuntu-latest, python: "3.14" }
           - { os: macos-latest, python: "3.12" }
           - { os: windows-latest, python: "3.12" }
     steps:

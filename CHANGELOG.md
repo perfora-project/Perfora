@@ -7,6 +7,14 @@ pre-1.0, the public API may still change between minor versions.
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.1.0] — 2026-07-26
+
+The first release: the full scan/video → notes → text pipeline, its native
+lossless format, the batch CLI, and the on-ramps (sample roll, notebook,
+container) that make it usable without a Python toolchain.
+
 ### Added
 
 - **First-run examples.** A bundled synthetic sample roll with known ground
@@ -24,11 +32,34 @@ pre-1.0, the public API may still change between minor versions.
 - Documentation: a plain-language [glossary](https://perfora.readthedocs.io/en/latest/glossary.html) and a field-by-field
   [walkthrough of the output file](https://perfora.readthedocs.io/en/latest/output.html).
 - Project infrastructure: CI (lint, strict typing, tests on Linux/macOS/Windows
-  and Python 3.11–3.13, a core-install-only job, an OCR-extras job, a wheel
+  and Python 3.11–3.14, a core-install-only job, an OCR-extras job, a wheel
   smoke test, and a docs build with warnings as errors), tag-driven GitHub
   releases, container builds, CodeQL, Dependabot, issue and pull-request
   templates, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, and
   `CITATION.cff`.
+
+### The pipeline itself
+
+- **Sources** — flat scans and videos normalise to one canonical `RollImage`,
+  with content-based type detection (libmagic) and a graceful fallback to
+  extension matching. Oversized scans are downscaled before warping, with the
+  calibration adjusted so millimetres stay correct.
+- **Geometry** — background-keyed segmentation, deskewing, hole detection (with
+  optional watershed splitting of touching perforations), *measured* lane finding
+  (never an assumed standard), and note assembly with confidence.
+- **Known lane count** as ground truth (`--lanes N` / `Config.n_lanes`):
+  octave-corrects a mis-locked pitch and anchors exactly N equally-spaced lanes
+  between the outermost used lanes.
+- **Text** — detector/recognizer protocols with offline backends (contour
+  detection, optional Tesseract, TrOCR, EasyOCR), scope classification
+  (`global_header`, `global_footer`, `global_margin`, `timeline`) and association
+  of timeline text with the notes it spans.
+- **Model and I/O** — millimetre-based dataclasses, a `Calibration` recording the
+  px↔mm relationship, a review queue for everything uncertain, and a lossless
+  `native-json` reader/writer behind a format registry.
+- **Pipeline surfaces** — one-shot `perfora.process`, a stepwise `Session` with
+  per-stage previews and overrides, and a batch CLI (`process`, `convert`,
+  `formats`, `sample`) with numbered stage previews and verbose narration.
 
 ### Fixed
 
@@ -50,29 +81,5 @@ pre-1.0, the public API may still change between minor versions.
   project URLs; the repository now lives at `perfora-project/Perfora` and all
   links point there.
 
-## [0.1.0] — unreleased
-
-The initial pipeline, built phase by phase:
-
-- **Sources** — flat scans and videos normalise to one canonical `RollImage`,
-  with content-based type detection (libmagic) and a graceful fallback to
-  extension matching. Oversized scans are downscaled before warping, with the
-  calibration adjusted so millimetres stay correct.
-- **Geometry** — background-keyed segmentation, deskewing, hole detection
-  (with optional watershed splitting of touching perforations), *measured* lane
-  finding (never an assumed standard), and note assembly with confidence.
-- **Known lane count** as ground truth (`--lanes N` / `Config.n_lanes`):
-  octave-corrects a mis-locked pitch and anchors exactly N equally-spaced lanes
-  between the outermost used lanes.
-- **Text** — detector/recognizer protocols with offline backends (contour
-  detection, optional Tesseract, TrOCR, EasyOCR), scope classification
-  (`global_header`, `global_footer`, `global_margin`, `timeline`) and association
-  of timeline text with the notes it spans.
-- **Model and I/O** — millimetre-based dataclasses, a `Calibration` recording the
-  px↔mm relationship, a review queue for everything uncertain, and a lossless
-  `native-json` reader/writer behind a format registry.
-- **Pipeline surfaces** — one-shot `perfora.process`, a stepwise `Session` with
-  per-stage previews and overrides, and a batch CLI (`process`, `convert`,
-  `formats`) with numbered stage previews and verbose narration.
-
-[Unreleased]: https://github.com/perfora-project/Perfora/compare/main...HEAD
+[Unreleased]: https://github.com/perfora-project/Perfora/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/perfora-project/Perfora/releases/tag/v0.1.0
