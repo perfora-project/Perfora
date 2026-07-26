@@ -122,9 +122,42 @@ A change is not finished until the documentation moved with it:
 
 ## Commits, branches, releases
 
-- Branch off `main`; open a pull request against `main`.
+**All work reaches `main` through a pull request.** Nothing is pushed to `main`
+directly — not dependency bumps, not one-line documentation fixes. The point is
+that CI has run on the exact commit that lands.
+
+```bash
+git switch -c feat/lane-pitch-refinement    # branch off an up-to-date main
+# ... work, commit ...
+git push -u origin feat/lane-pitch-refinement
+gh pr create --fill                          # or open it in the browser
+```
+
+Install the hook that keeps you honest — it refuses a direct push to `main`:
+
+```bash
+./scripts/install-git-hooks.sh
+```
+
+> Server-side enforcement is pending: GitHub's branch protection and rulesets
+> require Pro/Team for a private repository, so today the rule is a convention
+> plus that local hook. It becomes enforced the moment the repository is public
+> or the organisation is on a paid plan — and nothing about the workflow changes
+> when it does.
+
+Branch names: `feat/…`, `fix/…`, `docs/…`, `ci/…`, `refactor/…`, `test/…` —
+the same prefixes as the commit types, so a branch says what it is.
+
+- Merge with **squash** for an ordinary change (one commit per feature on
+  `main`), or with a **merge commit** when the individual commits carry meaning
+  worth keeping — multi-step algorithm work, typically. Rebase merges are off.
+- Branches are deleted automatically once merged.
 - Commit subjects follow [Conventional Commits](https://www.conventionalcommits.org):
-  `feat(lanes): ...`, `fix(holes): ...`, `docs: ...`, `ci: ...`.
+  `feat(lanes): ...`, `fix(holes): ...`, `docs: ...`, `ci: ...`. Explain *why* in
+  the body; the diff already shows *what*.
+- Dependabot's patch and minor updates merge themselves once CI is green
+  (`.github/workflows/dependabot-auto-merge.yml` labels them `automerge-ok`).
+  Major bumps wait for a human.
 - Releases are tag-driven: bump `version` in `pyproject.toml` and
   `perfora/__init__.py`, move the `CHANGELOG.md` entries under a new heading,
   then push a `vX.Y.Z` tag. CI builds the distributions, smoke-tests the wheel

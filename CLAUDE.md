@@ -117,6 +117,15 @@ selected.
 
 ## How to work in this repo
 
+- **Never commit to `main` directly.** Every change goes on a branch
+  (`feat/…`, `fix/…`, `docs/…`, `ci/…`, `refactor/…`, `test/…`) and lands through
+  a pull request, so CI has run on the exact commit that merges. Squash-merge by
+  default; a merge commit when the individual commits carry meaning. A local
+  `pre-push` hook enforces this (`./scripts/install-git-hooks.sh`); GitHub cannot,
+  while the repository is private on a Free plan — that is a plan limit, not a
+  decision, and the workflow is unchanged once it can.
+- Releases are tags: `v<version>` matching `project.version`, pushed after the
+  changelog entry moves under that version. `release.yml` refuses a mismatch.
 - Implement strictly in the phase order of `docs/BUILD_PLAN.md`. Each phase has a
   "Definition of done" and tests that must pass before moving on.
 - Build the **synthetic roll generator** early (Phase 1). It renders rolls with

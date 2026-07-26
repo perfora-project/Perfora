@@ -7,7 +7,18 @@ pre-1.0, the public API may still change between minor versions.
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+
+- **Pull-request workflow.** All work now reaches `main` through a pull request;
+  `scripts/install-git-hooks.sh` installs a `pre-push` hook that refuses direct
+  pushes to `main` (with a documented single-push override). GitHub's own branch
+  protection needs a paid plan for a private repository, so the hook stands in
+  for it until the repository is public — the workflow is identical either way.
+- **Dependabot auto-merge** for patch and minor updates
+  (`.github/workflows/dependabot-auto-merge.yml`): a labelling job reads the
+  update type from Dependabot's metadata, and a second job merges the pull
+  request once the CI workflow has succeeded for that commit. Major updates
+  still wait for a human.
 
 ## [0.1.0] — 2026-07-26
 

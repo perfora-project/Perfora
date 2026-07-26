@@ -1,0 +1,113 @@
+name: Dependabot auto-merge
+
+# Merges Dependabot's patch and minor updates once CI is green; major updates
+# always wait for a human.
+#
+# GitHub's own auto-merge button is unavailable here (private repository on a
+# Free plan), so this is done in two stages instead of one:
+#
+#   label:  runs on the pull request, reads Dependabot's metadata, and marks
+#           patch/minor bumps with the `automerge-ok` label.
+#   merge:  runs after the CI workflow finishes, and merges the pull request if
+#           CI succeeded and that label is present.
+#
+# Splitting it this way avoids both problems of the single-job approach: the
+# labelling job needs the pull-request context that `dependabot/fetch-metadata`
+# requires, while a job that waited for checks inside the pull-request event
+# would end up waiting on itself.
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dependabot-automerge-${{ github.event.pull_request.number || github.event.workflow_run.head_sha }}
+  cancel-in-progress: false
+
+jobs:
+  label:
+    name: mark patch/minor updates as auto-mergeable
+    if: >-
+      github.event_name == 'pull_request_target' &&
+      github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      # Nothing from the pull request is checked out or executed, which is what
+      # makes pull_request_target safe to use here.
+      - id: meta
+        uses: dependabot/fetch-metadata@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: label, or explain why not
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ github.event.pull_request.html_url }}
+          UPDATE_TYPE: ${{ steps.meta.outputs.update-type }}
+        run: |
+          set -euo pipefail
+          case "$UPDATE_TYPE" in
+            version-update:semver-patch|version-update:semver-minor)
+              gh label create automerge-ok \
+                --color 0e8a16 \
+                --description "Dependabot patch/minor update; merges itself when CI passes" \
+                --repo "$GITHUB_REPOSITORY" 2>/dev/null || true
+              gh pr edit "$PR" --add-label automerge-ok
+              echo "labelled ($UPDATE_TYPE) — will merge when CI is green"
+              ;;
+            *)
+              echo "$UPDATE_TYPE requires a human; leaving it alone"
+              ;;
+          esac
+
+  merge:
+    name: merge when CI is green
+    if: >-
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.actor.login == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: merge the pull request this CI run belongs to
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+
+          number=$(gh api "repos/$GITHUB_REPOSITORY/commits/$HEAD_SHA/pulls" \
+                     --jq '[.[] | select(.state == "open")][0].number // empty')
+          if [ -z "$number" ]; then
+            echo "no open pull request for $HEAD_SHA; nothing to do"
+            exit 0
+          fi
+
+          read -r state labels < <(gh pr view "$number" \
+            --repo "$GITHUB_REPOSITORY" \
+            --json state,labels \
+            --jq '[.state, ([.labels[].name] | join(","))] | @tsv')
+
+          echo "pull request #$number: state=$state labels=${labels:-none}"
+
+          case ",${labels}," in
+            *,automerge-ok,*) ;;
+            *) echo "not labelled automerge-ok — a human decides this one"; exit 0 ;;
+          esac
+
+          # The CI run that triggered this job is the gate; it has already
+          # succeeded for exactly this head commit.
+          gh pr merge "$number" --repo "$GITHUB_REPOSITORY" --squash --delete-branch
+          echo "merged #$number"
