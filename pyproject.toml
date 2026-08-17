@@ -65,7 +65,7 @@ doctr = ["python-doctr"]
 midi = ["mido"]
 cli = ["rich", "questionary", "pillow"]
 # Guided, browser-based exploration of the pipeline (`perfora-notebook`).
-notebook = ["jupyterlab>=4", "matplotlib", "pillow"]
+notebook = ["jupyterlab>=4.6.3", "matplotlib", "pillow"]
 all = ["perfora[tesseract,trocr,easyocr,doctr,midi,cli,notebook]"]
 dev = ["pytest", "ruff", "mypy", "hypothesis"]
 docs = [
