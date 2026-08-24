@@ -3082,11 +3082,10 @@ wheels = [
 
 [[package]]
 name = "python-doctr"
-version = "1.0.1"
+version = "1.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyascii" },
-    { name = "defusedxml" },
     { name = "h5py" },
     { name = "huggingface-hub" },
     { name = "langdetect" },
@@ -3106,9 +3105,9 @@ dependencies = [
     { name = "tqdm" },
     { name = "validators" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/1f/aa/35afe5b4f2e601557f9a617411896df0a5e092caac44a7ab78caec1e7fcd/python_doctr-1.0.1.tar.gz", hash = "sha256:6fc54316ea7915e1fa96bf58e9434b16e1511c3c61dff16d0802f18c71a5d9c6", size = 223224, upload-time = "2026-02-04T15:05:51.862Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/74/d9/5877304370b0134b928b24cb9c59551d5117b2817ca8bb278056332a5466/python_doctr-1.1.0.tar.gz", hash = "sha256:16fb7e79e6ab2cfe7a922e6f7844912f7a18613222cf1e07bd0c22840250eac4", size = 323590, upload-time = "2026-08-21T13:08:49.569Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/03/1d/83cfd3f35e6f83553b3effc951a45813a794da2f6ffc5c0e8f3557f4cead/python_doctr-1.0.1-py3-none-any.whl", hash = "sha256:a54028bc59df98816059fb038265c787ca971098ee78a2af2514267e6c71ce7e", size = 288861, upload-time = "2026-02-04T15:05:48.783Z" },
+    { url = "https://files.pythonhosted.org/packages/09/18/97cac95e4c8e60d08e3046ec775aaa19c13ef688de052e1e5b45ae6a1e6f/python_doctr-1.1.0-py3-none-any.whl", hash = "sha256:828148045bdb7b3eb8d861864f1877cf3be3ec5fe3b0e15db353cb75d82fe0a6", size = 402253, upload-time = "2026-08-21T13:08:48.205Z" },
 ]
 
 [[package]]
