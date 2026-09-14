@@ -1,7 +1,7 @@
 # Design documents
 
-The architecture and the original algorithms behind perfora — the reference for
-contributors and the rationale for the public interfaces.
+How perfora is put together and how its algorithms work. This is the reference
+for contributors, and the reasoning behind the public interfaces.
 
 ```{toctree}
 :maxdepth: 2

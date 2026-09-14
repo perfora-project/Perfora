@@ -1,4 +1,4 @@
-"""Text detection / recognition interfaces (an interface, per CLAUDE.md #4).
+"""Text detection / recognition interfaces (an interface, per AGENTS.md #4).
 
 Detection and recognition are split because the strong offline handwriting model
 (TrOCR) is recognition-only and expects a cropped line; detectors find the

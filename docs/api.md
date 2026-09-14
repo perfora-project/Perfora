@@ -1,7 +1,7 @@
 # Python API
 
-The command line is a thin shell over this library. Everything below is
-generated from the source docstrings.
+The command line is a thin shell over this library. Everything below is generated
+from the docstrings in the source.
 
 ## Top-level
 

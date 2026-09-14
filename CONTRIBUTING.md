@@ -1,8 +1,7 @@
 # Contributing to perfora
 
-Thank you for considering it. Contributions are welcome from programmers **and**
-from people who work with rolls — a careful bug report about a roll perfora got
-wrong is as valuable here as a patch.
+Contributions are welcome from programmers and from people who work with rolls.
+A careful bug report about a roll perfora got wrong is as useful here as a patch.
 
 - [Ways to help without writing code](#ways-to-help-without-writing-code)
 - [Development setup](#development-setup)
@@ -19,12 +18,12 @@ wrong is as valuable here as a patch.
   ["A roll came out wrong"](https://github.com/perfora-project/Perfora/issues/new?template=01-roll-decoded-wrong.yml)
   form. Re-run with `-v` and, if you can, `--preview-dir ./previews`, then paste
   what perfora printed and attach the preview pictures. Real failure cases are
-  what drive the algorithms forward.
-- **Tell us what is unclear.** If a word, an option or an output field made no
-  sense, that is a documentation bug — please open a question issue.
-- **Describe your roll standard.** perfora deliberately *measures* spacing
-  instead of assuming a standard, so knowing which standards exist, and how
-  their perforations look, helps us test against reality.
+  what the algorithms improve from.
+- **Tell us what's unclear.** If a word, an option or an output field made no
+  sense, that's a documentation bug — open a question issue.
+- **Describe your roll standard.** perfora measures spacing instead of assuming a
+  standard, so knowing which standards exist, and what their perforations look
+  like, helps us test against reality.
 
 ## Development setup
 
@@ -37,7 +36,7 @@ uv sync --extra dev          # core + test tooling
 uv run pytest                # should be green before you change anything
 ```
 
-Optional extras, added only when you need them:
+Optional extras, added when you need them:
 
 ```bash
 uv sync --extra dev --extra tesseract   # printed-text OCR (needs the system engine)
@@ -46,7 +45,7 @@ uv sync --extra docs                    # building the documentation
 ```
 
 The **core install must stay light**. `uv sync` with no extras has to be enough
-for image → holes → lanes → notes and for native JSON I/O; CI has a job that
+for image → holes → lanes → notes and for native JSON I/O. CI has a job that
 fails if that stops being true.
 
 ## The checks that must pass
@@ -58,29 +57,29 @@ uv run pytest                                           # the whole suite
 uv run sphinx-build -b html -W docs docs/_build/html     # docs, warnings as errors
 ```
 
-Note: the project lints with `ruff check` but does **not** enforce
-`ruff format` — do not reformat files you are not otherwise touching, as it
-buries the real change in noise.
+The project lints with `ruff check` but doesn't enforce `ruff format`. Please
+don't reformat files you're not otherwise touching — it buries the real change.
 
 If you change `pyproject.toml`, refresh the lockfile (`uv sync`) and commit
-`uv.lock`; CI runs locked and will fail on a stale one.
+`uv.lock`. CI runs locked and fails on a stale one.
 
 ## Project rules that reviews enforce
 
-These come from [`CLAUDE.md`](https://github.com/perfora-project/Perfora/blob/main/CLAUDE.md), which is the project's contract:
+These come from [`AGENTS.md`](https://github.com/perfora-project/Perfora/blob/main/AGENTS.md),
+which is the project's contract:
 
 1. **The roll logic is ours.** Periodicity detection, lane assignment, note
    assembly, text association and video reconstruction are implemented from
-   scratch on generic primitives (numpy, scipy, scikit-image, OpenCV). Do not add
-   or wrap another player-piano / piano-roll decoding library, and do not port
+   scratch on generic primitives (numpy, scipy, scikit-image, OpenCV). Don't add
+   or wrap another player-piano / piano-roll decoding library, and don't port
    another project's lane-finding algorithm. Generic image processing from
    libraries is encouraged.
 2. **Spacing is measured, never assumed.** Hole pitch differs between roll
-   standards, so the lane model is derived from the scan. A known lane count may
-   be *supplied* as ground truth (`--lanes`), but nothing may be hardcoded.
+   standards, so the lane model is derived from the scan. A known lane count can
+   be *supplied* as ground truth (`--lanes`), but nothing is hardcoded.
 3. **Millimetres leave the stages.** Pixels exist only inside image-processing
    code; everything in the data model is mm, with a `Calibration` recording the
-   px↔mm relationship. Time and MIDI are *derived*, never stored.
+   px↔mm relationship. Time and MIDI are derived, never stored.
 4. **Axes are `u` and `v`.** `u` = travel/length (notes extend along it), `v` =
    across the roll (where lanes live). Never bare x/y in the model.
 5. **Recognition is an interface.** Text detection/recognition sits behind
@@ -94,23 +93,24 @@ These come from [`CLAUDE.md`](https://github.com/perfora-project/Perfora/blob/ma
 
 ## Testing philosophy
 
-Tests are **deterministic and synthetic**. `tests/fixtures/synth.py` renders
-rolls from a specification and returns the ground-truth document alongside the
-image, so a test can assert exact lane counts, pitches and note positions.
+Tests are deterministic and synthetic. `tests/fixtures/synth.py` renders rolls
+from a specification and returns the ground-truth document along with the image,
+so a test can assert exact lane counts, pitches and note positions.
 
 - Prefer a new `RollSpec` variation over a new binary fixture.
 - Only two binary assets are shipped: the sample roll
-  (`perfora/resources/sample_roll.png`, itself generated by
-  `scripts/make_sample_roll.py`) and the logo. Do not add scans of real rolls to
-  the repository — provenance and rights are rarely clear, and the files are big.
+  (`perfora/resources/sample_roll.png`, generated by
+  `scripts/make_sample_roll.py`) and the logo. Don't add scans of real rolls to
+  the repository — the rights and provenance are rarely clear, and the files are
+  big.
 - Tests that need an optional backend are marked (`@pytest.mark.tesseract`,
   `trocr`, `easyocr`) and skip cleanly without it.
 - If you fix a decoding bug, add the roll shape that broke it to the synthetic
-  generator so it can never silently come back.
+  generator so it can't silently come back.
 
 ## Documentation is part of "done"
 
-A change is not finished until the documentation moved with it:
+A change isn't finished until the documentation moved with it:
 
 - `README.md` — the user-facing guide; keep examples runnable and honest about
   what ships today.
@@ -118,12 +118,15 @@ A change is not finished until the documentation moved with it:
   reference. Names and defaults must match the README table exactly.
 - Docstrings — NumPy style, stating units and axis conventions.
 - `CHANGELOG.md` — an entry under *Unreleased*.
-- `CLAUDE.md` — only if a constraint, the stack, or the workflow changed.
+- `AGENTS.md` — only if a constraint, the stack, or the workflow changed.
+
+`AGENTS.md` also describes the tone these documents are written in: plain,
+technical, no marketing. Read that section before writing a larger doc change.
 
 ## Commits, branches, releases
 
 **All work reaches `main` through a pull request.** Nothing is pushed to `main`
-directly — not dependency bumps, not one-line documentation fixes. The point is
+directly, not dependency bumps and not one-line documentation fixes. The point is
 that CI has run on the exact commit that lands.
 
 ```bash
@@ -140,21 +143,21 @@ Install the hook that keeps you honest — it refuses a direct push to `main`:
 ```
 
 > Server-side enforcement is pending: GitHub's branch protection and rulesets
-> require Pro/Team for a private repository, so today the rule is a convention
-> plus that local hook. It becomes enforced the moment the repository is public
-> or the organisation is on a paid plan — and nothing about the workflow changes
-> when it does.
+> need Pro/Team for a private repository, so for now the rule is a convention
+> plus that local hook. It becomes enforced once the repository is public or the
+> organisation is on a paid plan, and nothing about the workflow changes then.
 
-Branch names: `feat/…`, `fix/…`, `docs/…`, `ci/…`, `refactor/…`, `test/…` —
-the same prefixes as the commit types, so a branch says what it is.
+Branch names: `feat/…`, `fix/…`, `docs/…`, `ci/…`, `refactor/…`, `test/…` — the
+same prefixes as the commit types, so a branch says what it is.
 
 - Merge with **squash** for an ordinary change (one commit per feature on
   `main`), or with a **merge commit** when the individual commits carry meaning
-  worth keeping — multi-step algorithm work, typically. Rebase merges are off.
+  worth keeping, which usually means multi-step algorithm work. Rebase merges
+  are off.
 - Branches are deleted automatically once merged.
 - Commit subjects follow [Conventional Commits](https://www.conventionalcommits.org):
   `feat(lanes): ...`, `fix(holes): ...`, `docs: ...`, `ci: ...`. Explain *why* in
-  the body; the diff already shows *what*.
+  the body; the diff already shows what.
 - Dependabot's patch and minor updates merge themselves once CI is green
   (`.github/workflows/dependabot-auto-merge.yml` labels them `automerge-ok`).
   Major bumps wait for a human.
@@ -162,11 +165,13 @@ the same prefixes as the commit types, so a branch says what it is.
   `perfora/__init__.py`, move the `CHANGELOG.md` entries under a new heading,
   then push a `vX.Y.Z` tag. CI builds the distributions, smoke-tests the wheel
   against the sample roll, and attaches them to a GitHub release. Publishing to
-  PyPI is not enabled yet (see the commented job in
+  PyPI isn't enabled yet (see the commented job in
   `.github/workflows/release.yml`).
 
 ## Licensing of contributions
 
-perfora is licensed under [Apache-2.0](https://github.com/perfora-project/Perfora/blob/main/LICENSE). By contributing you agree that
-your contribution is licensed under the same terms (Apache-2.0 §5). There is no
-CLA. Please do not paste code from projects under incompatible licenses.
+perfora is licensed under
+[Apache-2.0](https://github.com/perfora-project/Perfora/blob/main/LICENSE). By
+contributing you agree that your contribution is licensed under the same terms
+(Apache-2.0 §5). There's no CLA. Please don't paste code from projects under
+incompatible licenses.

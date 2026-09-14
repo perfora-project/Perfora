@@ -71,7 +71,7 @@ jobs:
       - run: uv run pytest -q
 
   core-install:
-    # Enforces the hard constraint from CLAUDE.md: the image -> holes -> lanes
+    # Enforces the hard constraint from AGENTS.md: the image -> holes -> lanes
     # -> notes path and native JSON I/O must work with only the light core
     # dependencies installed — no OCR, no ML, no CLI extras.
     name: core install only

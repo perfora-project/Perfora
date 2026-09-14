@@ -1,4 +1,4 @@
-"""Guard for hard-constraint #1 (CLAUDE.md): the roll logic must be ours.
+"""Guard for hard-constraint #1 (AGENTS.md): the roll logic must be ours.
 
 `perfora/` may use generic image-processing / scientific libraries freely, but it
 must never import (and therefore never wrap or piggyback on) an existing

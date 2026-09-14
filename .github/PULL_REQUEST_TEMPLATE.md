@@ -1,6 +1,6 @@
 <!--
 Thanks for contributing to perfora. Keep the description short; the checklist is
-what matters, because it encodes the project's contract (see CLAUDE.md).
+what matters, because it encodes the project's contract (see AGENTS.md).
 -->
 
 ## What this changes
@@ -34,7 +34,7 @@ what matters, because it encodes the project's contract (see CLAUDE.md).
 - [ ] Docstrings (NumPy style, with units) updated for changed signatures.
 - [ ] `uv run sphinx-build -b html -W docs docs/_build/html` still builds.
 - [ ] `CHANGELOG.md` has an entry under *Unreleased*.
-- [ ] `CLAUDE.md` updated if a constraint, the stack, or the workflow changed.
+- [ ] `AGENTS.md` updated if a constraint, the stack, or the workflow changed.
 
 ## Anything reviewers should look at closely
 

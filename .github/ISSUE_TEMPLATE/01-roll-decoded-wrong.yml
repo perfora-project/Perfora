@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        You do not need to be a programmer to file this — the numbers perfora
+        You don't need to be a programmer to file this; the numbers perfora
         prints are enough for us to start. Nothing here is required except the
         first box.
 
@@ -60,7 +60,7 @@ body:
     id: previews
     attributes:
       label: Pictures (optional but very helpful)
-      description: "Drag in the files from `--preview-dir`, especially `__03_lanes.png`. A photo or crop of the roll itself is welcome too — only if you are free to share it."
+      description: "Drag in the files from `--preview-dir`, especially `__03_lanes.png`. A photo or crop of the roll itself is welcome too — only if you're free to share it."
 
   - type: input
     id: version

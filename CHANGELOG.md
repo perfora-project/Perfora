@@ -7,6 +7,18 @@ pre-1.0, the public API may still change between minor versions.
 
 ## [Unreleased]
 
+### Changed
+
+- **`CLAUDE.md` is now `AGENTS.md`.** The project contract is tool-agnostic, so
+  it lives under the name every coding agent looks for; `CLAUDE.md` is a short
+  pointer to it plus the few Claude Code-specific notes. References in
+  `CONTRIBUTING.md`, the PR template, `ci.yml` and two source files follow.
+- **Documentation rewritten in plainer language.** README, `CONTRIBUTING.md`,
+  the glossary, the output-format walkthrough and the quickstart notebook say the
+  same things with less polish and fewer flourishes. No behaviour, defaults or
+  option names changed. `AGENTS.md` now documents the tone these files are
+  written in, so it stays consistent.
+
 ### Added
 
 - **Pull-request workflow.** All work now reaches `main` through a pull request;
