@@ -26,10 +26,10 @@ lane
   but still exists in the {term}`lane model`.
 
 lane pitch
-  The centre-to-centre distance between neighbouring lanes, in millimetres. It
-  is the single most important measurement perfora makes: get the pitch right
-  and every note lands in the right lane. Different roll standards use different
-  pitches, so perfora **measures** it rather than assuming a standard.
+  The centre-to-centre distance between neighbouring lanes, in millimetres. Get
+  the pitch right and every note lands in the right lane, so it's the
+  measurement everything else depends on. Roll standards use different pitches,
+  so perfora measures it instead of assuming one.
 
 lane model
   The measured description of the lane grid: the pitch, the position of lane 0
@@ -77,9 +77,9 @@ confidence
 review queue
   The list of results perfora was unsure about, each with a reason
   (`ambiguous_lane`, `short_or_noisy_note`, `low_ocr_confidence`, …) and a
-  pointer to the note or text it concerns. This is the project's central
-  promise: **nothing uncertain is silently dropped**. An empty queue means
-  perfora was confident about everything it produced.
+  pointer to the note or text it concerns. Nothing uncertain is dropped
+  silently. An empty queue means perfora was confident about everything it
+  produced.
 
 scope
   What a piece of text on the roll refers to. `global_header` and

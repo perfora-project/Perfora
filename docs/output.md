@@ -1,11 +1,11 @@
 # Output format
 
-perfora writes a `.perfora.json` file: **plain text you can open in any editor**,
-and **lossless** — reading it back gives exactly the same data, which is what
-makes it safe to archive. This page walks through a real file, field by field.
+perfora writes a `.perfora.json` file. It's plain text you can open in any
+editor, and it's lossless: reading it back gives exactly the same data, which is
+what makes it safe to archive. This page goes through a real file field by field.
 
-Every spatial number is in **millimetres**. Every confidence is a number from 0
-to 1. No time values are stored anywhere — see
+Every spatial number is in millimetres and every confidence is a number from 0 to
+1. No time values are stored anywhere, see
 [Why there are no seconds](#why-there-are-no-seconds).
 
 ## The shape of the file
@@ -28,7 +28,7 @@ Three keys at the top level; everything of interest lives under `document`.
 }
 ```
 
-`format` and `schema_version` exist so a future reader can recognise an older
+`format` and `schema_version` are there so a future reader can recognise an older
 file and still load it correctly.
 
 ## `calibration` — pixels to millimetres
@@ -48,9 +48,9 @@ file and still load it correctly.
 | `dpi` | The scan resolution this was derived from, when known. |
 | `source` | Where the scale came from: `"dpi"`, `"physical_width"`, or `"assumed"`. |
 
-`"source": "assumed"` is the one to watch: you gave neither `--dpi` nor
+Watch for `"source": "assumed"`. It means you gave neither `--dpi` nor
 `--physical-width-mm`, so 1 mm was taken to equal 1 px. Relative spacing and
-proportions are still correct; the absolute millimetre scale is not.
+proportions are still correct; the absolute millimetre scale isn't.
 
 ## `lane_model` — the measured grid
 
@@ -66,15 +66,15 @@ proportions are still correct; the absolute millimetre scale is not.
 
 | Field | Meaning |
 |---|---|
-| `pitch_mm` | Centre-to-centre distance between neighbouring lanes. The single most important measurement in the file. |
+| `pitch_mm` | Centre-to-centre distance between neighbouring lanes. Everything downstream depends on this one. |
 | `v0_mm` | Where lane 0 sits across the roll. |
 | `n_lanes` | How many lanes the grid has (silent lanes included). |
 | `confidence` | How well the grid fits the holes that were found. |
 | `method` | How it was obtained: `comb-fit` (measured from the holes) or `fixed-count` (you supplied `--lanes N`, treated as ground truth). |
 
-This roll was measured at 2.9974 mm; it was in fact generated at exactly 3.0 mm.
-A pitch that is exactly double or half what you expect is the classic failure —
-fix it by passing the true lane count with `--lanes N`.
+This roll was measured at 2.9974 mm and was generated at exactly 3.0 mm. A pitch
+that comes out exactly double or half what you expect is the classic failure
+mode; fix it by passing the true lane count with `--lanes N`.
 
 ## `notes` — one entry per note
 
@@ -98,11 +98,11 @@ fix it by passing the true lane count with `--lanes N`.
 | `pitch` | MIDI note number, when a lane→pitch mapping is known. `null` today — mapping lanes to pitches is on the roadmap, and depends on the roll standard. |
 
 The note's length is `u_end_mm - u_start_mm` (the Python model exposes it as
-`note.length_mm`). Notes are **not** guaranteed to be sorted; sort by
-`u_start_mm` if order matters to you.
+`note.length_mm`). Notes aren't guaranteed to be sorted, so sort by `u_start_mm`
+if order matters to you.
 
-Careful with the word *pitch*: `lane_model.pitch_mm` is a **distance** (lane
-spacing), while `notes[].pitch` is a **musical** pitch. They are unrelated.
+Careful with the word *pitch*: `lane_model.pitch_mm` is a distance (lane
+spacing), `notes[].pitch` is a musical pitch. They're unrelated.
 
 ## `texts` — labels and annotations
 
@@ -129,11 +129,11 @@ spacing), while `notes[].pitch` is a **musical** pitch. They are unrelated.
 | `confidence` | Recognition confidence. |
 | `recognized_by` | Which backend read it (`""` when only detected). |
 | `needs_review` | `true` when it was not read, or read with low confidence. |
-| `associated_note_ids` | For `timeline` text: indices into `notes` of the notes this text sits beside — this is how a handwritten "louder" is tied to the passage it marks. |
+| `associated_note_ids` | For `timeline` text: indices into `notes` of the notes this text sits beside. This is how a handwritten "louder" is tied to the passage it marks. |
 | `category` | A shallow guess: `title`, `composer`, `arranger`, `dynamic`, `annotation`, or absent. |
 
-An empty `texts` list means no text regions were detected — a plain roll, or a
-scan whose contrast is too low for detection.
+An empty `texts` list means no text regions were detected: either a plain roll,
+or a scan whose contrast is too low for detection.
 
 ## `review_queue` — what perfora was unsure about
 
@@ -159,23 +159,23 @@ scan whose contrast is too low for detection.
 
 | `reason` | What it means |
 |---|---|
-| `ambiguous_lane` | A perforation sits between two lane centres — usually a sign the lane pitch or the grid position is slightly off. |
-| `short_or_noisy_note` | A note shorter than `min_note_len_mm`, or with low confidence — often dirt, a pinhole, or a tear. |
+| `ambiguous_lane` | A perforation sits between two lane centres. Usually a sign the lane pitch or the grid position is slightly off. |
+| `short_or_noisy_note` | A note shorter than `min_note_len_mm`, or with low confidence. Often dirt, a pinhole, or a tear. |
 | `low_ocr_confidence` | Text was read, but the backend was not confident. |
 | `detected_not_recognized` | A text region was found and no backend read it (typically no OCR extra installed). |
 | `uncertain_scope` | Text could not be confidently assigned to a scope. |
 
-**An empty queue means perfora was confident about everything.** A long queue is
-not a failure — it is an honest list of what a human should look at. Use
-`--review fail` in a batch script to make perfora exit non-zero when the queue is
-non-empty, so rolls needing attention cannot slip past unnoticed.
+An empty queue means perfora was confident about everything it produced. A long
+queue isn't a failure, it's the list of things a human should look at. Use
+`--review fail` in a batch script to exit non-zero when the queue isn't empty, so
+rolls that need attention don't slip past.
 
 ## `provenance` — how the file was made
 
 Records the source type and name, the perfora version, the creation timestamp,
-and **every configuration value in force during the run** (`params`). That last
-part is what makes a result reproducible: the file states the thresholds that
-produced it, so a run can be repeated exactly, years later.
+and every configuration value in force during the run (`params`). That last part
+is what makes a result reproducible: the file states the thresholds that produced
+it, so the run can be repeated years later.
 
 ```json
 "provenance": {
@@ -189,8 +189,8 @@ produced it, so a run can be repeated exactly, years later.
 
 ## `standard_guess`
 
-A guess at which roll standard this is, or `null`. perfora never *relies* on a
-standard — the lane model is measured — so this is informational only.
+A guess at which roll standard this is, or `null`. Nothing in perfora relies on
+it — the lane model is measured — so it's informational only.
 
 ## Why there are no seconds
 
@@ -203,12 +203,12 @@ seconds = note.duration_seconds(feed_rate_mm_per_s=180.0)
 start_s = note.u_start_mm / 180.0
 ```
 
-The same reasoning applies to MIDI note numbers: mapping lane → pitch depends on
-the roll standard, and belongs to the consumer, not the archive.
+Same reasoning for MIDI note numbers: mapping lane → pitch depends on the roll
+standard and belongs to the consumer, not to the archive file.
 
 ## Reading it without perfora
 
-It is ordinary JSON, so any tool can read it:
+It's ordinary JSON, so any tool can read it:
 
 ```python
 import json
