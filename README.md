@@ -6,7 +6,7 @@
 
 # perfora
 
-perfora reads a scan (or a video) of a player-piano roll and turns it into data:
+Perfora reads a scan (or a video) of a player-piano roll and turns it into data:
 every perforation as a note with a lane and a start/end position, plus the
 printed and handwritten text on the roll with its position and what it refers to.
 All positions come out in millimetres of paper.
@@ -24,7 +24,7 @@ Photographing a roll is easy. Getting music out of the photo is the hard part. A
 scan is a picture of a paper strip with holes in it, and to read it you need the
 lane grid: which column of holes belongs to which key. That grid isn't printed
 anywhere on the roll, it differs between manufacturers and standards, and old
-paper has usually shrunk, so you can't just hardcode a pitch and hope. perfora
+paper has oftentimes shrunk, so you can't just hardcode a pitch and hope for the best. Perfora
 measures the grid from the holes in the scan in front of it.
 
 A few decisions that shape everything else:
@@ -45,7 +45,7 @@ A few decisions that shape everything else:
 - **The output format is lossless.** Reading a file back gives the same data, and
   the file records the settings that produced it.
 
-perfora doesn't decide what the music means. It won't map lanes to MIDI pitches,
+Perfora doesn't decide what the music means. It won't map lanes to MIDI pitches,
 guess a tempo, or "clean up" a roll to make it sound better. Those are
 interpretive calls, and putting them in the archive file would throw away
 information you can't get back.
